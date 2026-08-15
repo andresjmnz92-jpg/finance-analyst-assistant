@@ -15,8 +15,17 @@ the ledger, reads the policy, checks the budget and shows exactly what it did.
 | ✅ The seven tools | Built and checked against both datasets; see [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | ✅ [`NOTES.md`](NOTES.md) | What went wrong, how it was noticed, what was cut |
 | ✅ One check that runs | `python -m evals.no_borrowed_facts` |
-| ⬜ Router, CLI and trace | The orchestration layer is written but not yet wired |
+| ✅ The trace, and the executor that fills it | `python -m src.agent.run consolidated_spend` — **1 of the 8 plans wired**, and it runs with no model at all |
+| ⬜ The other seven plans, the CLI, and the router | |
 | ⬜ The eval runner over all eight questions | |
+
+```
+  step 2   convert_currency
+           -> total: 10,003,879.96
+             ->! NOT CONVERTED - no rate on file for 1 month/currency combination(s),
+                 covering 147 rows: 147 ledger rows worth 1,231,309.12 EUR in 2024-09.
+  status:  PARTIAL
+```
 
 ## Install and run
 

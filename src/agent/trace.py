@@ -41,6 +41,8 @@ class Trace:
         self.question = question
         self.dataset = dataset
         self.steps = []
+        self.decisions = []         # elecciones que ninguna herramienta pudo tomar
+        self.findings = None        # los numeros crudos; la prosa la escribe el redactor
         self.answer = None
         self.status = None          # COMPLETE / PARTIAL / REFUSED
         self.model = {"calls": 0, "tokens": 0, "usd": 0.0}
@@ -72,6 +74,17 @@ class Trace:
         })
         return output
 
+    def decision(self, texto):
+        """A choice the plan made that no tool could make for it.
+
+        "Which year is Q3?" is not answerable by query_ledger - it is handed the
+        dates already chosen. If the choice is not written down here it appears
+        nowhere, and an answer that quietly picks a year is the confident wrong
+        answer this exercise punishes. Decisions join the tool notes in
+        `all_notes`, which is what the eval reads.
+        """
+        self.decisions.append(texto)
+
     def model_call(self, resultado):
         self.model["calls"] += 1
         self.model["tokens"] += resultado.get("total_tokens", 0)
@@ -87,9 +100,10 @@ class Trace:
         return {
             "question": self.question, "plan": self.plan, "dataset": self.dataset,
             "source": self.source, "status": self.status, "answer": self.answer,
+            "decisions": self.decisions, "findings": self.findings,
             "steps": self.steps, "model": {**self.model, "usd": round(self.model["usd"], 6)},
             "seconds": round(time.time() - self.started, 2),
-            "all_notes": [n for s in self.steps for n in s["notes"]],
+            "all_notes": self.decisions + [n for s in self.steps for n in s["notes"]],
         }
 
     def save(self, carpeta="traces", nombre=None):
@@ -122,9 +136,22 @@ class Trace:
                 out.append(f'           {s["seconds"]}s')
             out.append("")
 
+        for dec in d["decisions"]:
+            out.append(f'  ->! {_envolver(dec, sangria=" " * 6)}')
+        if d["decisions"]:
+            out.append("")
+
         m = d["model"]
         out.append(f'  model:   {m["calls"]} call(s), {m["tokens"]:,} tokens, ${m["usd"]:.4f}')
         out.append(f'  total:   {d["seconds"]}s')
+        # El estado se imprime aqui y no solo junto a la respuesta: una corrida sin
+        # redactor no tiene respuesta, y PARTIAL es justo lo que no se puede perder.
+        out.append(f'  status:  {d["status"]}')
+        if d["findings"]:
+            out.append("")
+            out.append("FINDINGS")
+            for linea in _resumir(d["findings"]):
+                out.append(f'  {linea}')
         if d["answer"]:
             out.append("")
             out.append(f'ANSWER - {d["status"]}')
