@@ -116,7 +116,7 @@ class Budget:
                              "usd": self.max_usd}}
 
 
-def ask(messages, budget, temperature=0.0, max_output_tokens=1500, timeout=60,
+def ask(messages, budget, temperature=0.0, max_output_tokens=4000, timeout=60,
         usd_per_m_input=0.0, usd_per_m_output=0.0):
     """One chat completion. Returns text plus what it cost.
 
@@ -134,22 +134,49 @@ def ask(messages, budget, temperature=0.0, max_output_tokens=1500, timeout=60,
     modelo = os.environ.get("MODEL_NAME", MODELO_POR_DEFECTO)
     budget.check()
 
-    cuerpo = json.dumps({"model": modelo, "messages": messages,
-                         "temperature": temperature,
-                         "max_tokens": max_output_tokens}).encode()
-    req = urllib.request.Request(
-        f"{base}/chat/completions", data=cuerpo,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {clave}"})
-
-    t0 = time.time()
-    try:
+    def enviar(cuerpo):
+        req = urllib.request.Request(
+            f"{base}/chat/completions", data=json.dumps(cuerpo).encode(),
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {clave}"})
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            datos = json.loads(r.read())
-    except urllib.error.HTTPError as e:
-        detalle = e.read().decode("utf-8", "replace")[:400]
-        raise RuntimeError(f"model call failed ({e.code}): {detalle}") from None
-    except urllib.error.URLError as e:
-        raise RuntimeError(f"could not reach {base}: {e.reason}") from None
+            return json.loads(r.read())
+
+    # "OPENAI-COMPATIBLE" IS NOT ONE PROTOCOL, AND THIS IS MEASURED.
+    # NOTES.md claimed a provider swap was two environment variables. Against
+    # gpt-5-mini it was two variables and two 400s:
+    #
+    #   max_tokens    rejected, "use max_completion_tokens instead"
+    #   temperature   rejected, "does not support 0.0 with this model"
+    #
+    # The first is a rename. The second removes a design decision - temperature 0
+    # is why the same question routes the same way twice, and on that model it is
+    # not on offer. Each adjustment is recorded and travels back with the answer,
+    # because a run that could not be deterministic must not look like one that
+    # was.
+    cuerpo = {"model": modelo, "messages": messages,
+              "temperature": temperature, "max_tokens": max_output_tokens}
+    ajustes, datos = [], None
+    t0 = time.time()
+    for _ in range(3):
+        try:
+            datos = enviar(cuerpo)
+            break
+        except urllib.error.HTTPError as e:
+            detalle = e.read().decode("utf-8", "replace")
+            if e.code == 400 and "max_completion_tokens" in detalle and "max_tokens" in cuerpo:
+                cuerpo["max_completion_tokens"] = cuerpo.pop("max_tokens")
+                ajustes.append("max_tokens renamed to max_completion_tokens")
+            elif e.code == 400 and "temperature" in detalle and "temperature" in cuerpo:
+                cuerpo.pop("temperature")
+                ajustes.append(f"temperature={temperature} refused by this model; the "
+                               f"provider default was used and the run is NOT deterministic")
+            else:
+                raise RuntimeError(f"model call failed ({e.code}): {detalle[:400]}") from None
+        except urllib.error.URLError as e:
+            raise RuntimeError(f"could not reach {base}: {e.reason}") from None
+    if datos is None:
+        raise RuntimeError(f"model call failed after adjusting {ajustes}")
 
     uso = datos.get("usage") or {}
     entrada = uso.get("prompt_tokens", 0)
@@ -176,6 +203,7 @@ def ask(messages, budget, temperature=0.0, max_output_tokens=1500, timeout=60,
 
     return {
         "text": texto, "model": datos.get("model", modelo), "finish_reason": razon,
+        "compatibility_adjustments": ajustes,
         "input_tokens": entrada, "output_tokens": salida, "total_tokens": total,
         "reasoning_tokens": total - entrada - salida,
         "usd": round(usd, 6), "seconds": round(time.time() - t0, 2),

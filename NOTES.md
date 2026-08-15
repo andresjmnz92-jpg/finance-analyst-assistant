@@ -94,17 +94,31 @@ that reaches an invoice are code. Tone is prompt.
 I used **Gemini 3.6 Flash on Google AI Studio's free tier**, which you name as expected and fine. I
 have no budget for this, and a hiring exercise is not where a bill should appear.
 
-**The provider is two environment variables, not an architecture.** Everything talks the
-OpenAI-compatible protocol, so Gemini, Groq, OpenAI, OpenRouter and a local Ollama are the same code
-path:
+**The provider is three environment variables — and "OpenAI-compatible" is not one protocol.** I
+wrote here that a swap was two variables and no code change, then swapped to `gpt-5-mini` to check
+it and got two HTTP 400s:
+
+```
+max_tokens    rejected: "use max_completion_tokens instead"
+temperature   rejected: "does not support 0.0 with this model"
+```
+
+The first is a rename. The second removes a design decision: temperature 0 is why the same question
+routes the same way twice, and that model does not offer it. `ask()` now adapts to both and
+**records the adjustment on the answer**, because a run that could not be deterministic must not
+look like one that was.
+
+So the claim survives with an asterisk. Same code path, same three variables:
 
 ```bash
 MODEL_BASE_URL=...    MODEL_NAME=...    MODEL_API_KEY=...
 ```
 
-You will run it with your own credentials, and nothing needs changing for that. It also means the
+You will run it with your own credentials and nothing needs changing for that. It also means the
 whole system works with no model at all: every tool is callable and testable without one, and a plan
-can be run by name. The model is the thinnest layer in here, deliberately.
+can be run by name. The model is the thinnest layer in here, deliberately — measurably so, since
+five of the eight questions are answered end to end with a single model call each, and that call
+writes prose only.
 
 **Would a stronger model do better? Probably, in one specific place — and I would measure it rather
 than assume it.** The model's job here is to read an English question, pick a plan, and write the
