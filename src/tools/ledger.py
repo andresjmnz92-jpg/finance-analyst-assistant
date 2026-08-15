@@ -80,7 +80,15 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
             donde.append(f"account_code IN ({','.join('?' * len(accounts))})")
             params += list(accounts)
     for col, val in filtros.items():
+        # None significa "sin filtro" en TODOS los demas parametros de este
+        # repositorio. Aqui construia `col IN (NULL)`, que no casa con nada y
+        # devuelve cero filas indistinguible de un periodo vacio.
+        if val is None:
+            continue
         valores = val if isinstance(val, (list, tuple, set)) else [val]
+        if not valores:
+            donde.append("1 = 0")
+            continue
         donde.append(f"{col} IN ({','.join('?' * len(valores))})")
         params += list(valores)
 

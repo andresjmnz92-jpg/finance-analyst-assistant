@@ -42,17 +42,41 @@ def resolve_accounts(con, root, as_of):
     )
     SELECT DISTINCT code FROM tree
     """
-    bajo = {r[0] for r in con.execute(sql, (root, as_of, as_of))} - {root}
+    alcance = {r[0] for r in con.execute(sql, (root, as_of, as_of))}
+    bajo = alcance - {root}
 
+    # Ser padre tambien tiene fecha. Preguntar por todo el plan de cuentas sin
+    # filtrar por `as_of` marcaba como nodo una cuenta que solo tuvo hijos en un
+    # periodo anterior, y la sacaba de las hojas justo cuando ya recibe apuntes:
+    # cero filas, cero avisos, respuesta cero. Es la misma trampa de vigencia que
+    # este modulo denuncia para el join del mayor.
     padres = {r[0] for r in con.execute(
-        "SELECT DISTINCT parent_code FROM chart_of_accounts WHERE parent_code <> ''")}
+        "SELECT DISTINCT parent_code FROM chart_of_accounts "
+        "WHERE parent_code <> '' AND ? BETWEEN valid_from AND valid_to", (as_of,))}
     hojas = sorted(c for c in bajo if c not in padres)
     nodos = sorted(c for c in bajo if c in padres)
 
     notas = []
-    if not bajo:
-        notas.append(f"'{root}' resolved to nothing on {as_of}. Either it is not an "
-                     f"account code, or it was not in force on that date.")
+    # Un root que ya es hoja se resuelve a si mismo. Devolver lista vacia hacia que
+    # preguntar por "airfare" diese cero con una explicacion falsa al lado.
+    if root in alcance and not bajo and root not in padres:
+        hojas = [root]
+        notas.append(f"'{root}' is itself a posting account, not a rollup: it resolves to "
+                     f"itself.")
+    elif not alcance:
+        existe = con.execute("SELECT COUNT(*), MIN(valid_from), MAX(valid_to) "
+                             "FROM chart_of_accounts WHERE account_code = ?", (root,)).fetchone()
+        if existe[0]:
+            notas.append(f"'{root}' exists in the chart of accounts but was not in force on "
+                         f"{as_of} (its windows span {existe[1]}..{existe[2]}). Nothing was "
+                         f"resolved - this is not a zero.")
+        else:
+            notas.append(f"'{root}' is not an account code in this chart of accounts. Nothing "
+                         f"was resolved - this is not a zero.")
+    elif not hojas:
+        notas.append(f"'{root}' resolved to {len(nodos)} rollup node(s) and NO posting "
+                     f"accounts on {as_of}. Summing this returns zero, which is not the "
+                     f"same as no spend.")
 
     # Una cuenta con mas de una ventana significa que esta respuesta CAMBIA con la
     # fecha. Quien pregunte por un periodo entero no puede usar una sola resolucion.

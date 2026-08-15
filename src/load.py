@@ -3,9 +3,15 @@
     python -m src.load                    # data/          -> data.db
     python -m src.load evals/fixtures     # evals/fixtures -> fixtures.db
 
-The database name is derived from the folder, never passed in. An earlier version
-took it as a second argument, which meant forgetting it loaded the fixture on top
-of the real data - silently, and with a success message.
+The database name is derived from the folder, and the folder's full path is stored
+inside the database. Loading a different folder that happens to share the same
+basename refuses instead of overwriting.
+
+Both guards exist because both failures happened. First the db name was a second
+argument, so forgetting it loaded the fixture over the real data. Then the name was
+derived from the basename alone, so any folder called 'data' did the same thing -
+a review verified it, replacing 10,916 rows with 18 and printing a success
+summary.
 
 TWO DATASETS, ONE LOADER. The brief says the tools will be run against a second
 dataset with the same columns. Rather than take that on faith, the eval suite runs
@@ -28,6 +34,7 @@ centre carries two full sets of figures. Declaring keys the data does not have
 would either fail the load or hide the ambiguity - both worse than carrying it.
 """
 
+import contextlib
 import csv
 import sqlite3
 import sys
@@ -72,12 +79,35 @@ INDICES = [
 ]
 
 
-def cargar(datos=None):
+def cargar(datos=None, force=False):
     datos = Path(datos) if datos else RAIZ / "data"
     if not datos.is_absolute():
         datos = RAIZ / datos
+    datos = datos.resolve()
     DB = RAIZ / f"{datos.name}.db"
 
+    # La ruta de origen se graba dentro de la base. Derivar el nombre del basename
+    # no basta: CUALQUIER carpeta llamada 'data' apuntaba al mismo archivo, asi que
+    # cargar /otro/sitio/data borraba los 10.916 registros reales e imprimia exito.
+    # El docstring afirmaba que eso era imposible; no lo era.
+    if DB.exists() and not force:
+        anterior = None
+        try:
+            # Cerrar SIEMPRE antes del unlink: en Windows un archivo abierto no se
+            # puede borrar, y la comprobacion acababa impidiendo la carga que si
+            # estaba permitida.
+            with contextlib.closing(sqlite3.connect(DB)) as previo:
+                anterior = previo.execute(
+                    "SELECT value FROM _source WHERE key = 'path'").fetchone()
+        except sqlite3.Error:
+            anterior = None
+        if anterior and anterior[0] != str(datos):
+            sys.exit(
+                f"{DB.name} already holds a different dataset:\n"
+                f"    existing: {anterior[0]}\n"
+                f"    incoming: {datos}\n"
+                f"Both folders are named '{datos.name}'. Rename one, or pass force=True "
+                f"if replacing it is what you meant.")
     if DB.exists():
         DB.unlink()
     con = sqlite3.connect(DB)
@@ -124,6 +154,8 @@ def cargar(datos=None):
         con.executemany(f"INSERT INTO {tabla} VALUES ({marcas})", filas)
         resumen.append((tabla, len(filas)))
 
+    con.execute("CREATE TABLE _source (key TEXT PRIMARY KEY, value TEXT)")
+    con.execute("INSERT INTO _source VALUES ('path', ?)", (str(datos),))
     for sql in INDICES:
         con.execute(sql)
     con.commit()
