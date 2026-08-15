@@ -51,8 +51,12 @@ def query_budget(con, period_from=None, period_to=None, cost_centres=None, accou
             else:
                 donde.append(f"{col} IN ({','.join('?' * len(val))})"); params += list(val)
 
+    # entity va en la particion. Sin ella, dos sociedades que comparten codigo de
+    # centro - normal en un grupo - salen como "dos versiones del presupuesto en
+    # conflicto", que es la alarma principal de esta herramienta disparandose sobre
+    # dos lineas correctas y sin relacion.
     sql = ("SELECT entity, cost_centre, account_code, period_month, budget_amount, currency, "
-           "ROW_NUMBER() OVER (PARTITION BY cost_centre, account_code, period_month "
+           "ROW_NUMBER() OVER (PARTITION BY entity, cost_centre, account_code, period_month "
            "ORDER BY rowid) AS version "
            "FROM budget "
            + (f"WHERE {' AND '.join(donde)} " if donde else "")
@@ -68,14 +72,14 @@ def query_budget(con, period_from=None, period_to=None, cost_centres=None, accou
     # resto va aparte. Sumando todo, "set 1" incluiria los ocho centros sanos y
     # "set 2" solo el duplicado: dos cifras correctas puestas de forma que se leen
     # como un recorte del 90% que nunca existio.
-    duplicadas = {(f["cost_centre"], f["account_code"], f["period_month"])
+    duplicadas = {(f["entity"], f["cost_centre"], f["account_code"], f["period_month"])
                   for f in filas if f["version"] > 1}
     totales = {v: round(sum(f["amount"] for f in filas if f["version"] == v
-                            and (f["cost_centre"], f["account_code"], f["period_month"])
+                            and (f["entity"], f["cost_centre"], f["account_code"], f["period_month"])
                             in duplicadas), 2)
                for v in versiones} if duplicadas else {}
     sin_ambiguedad = round(sum(f["amount"] for f in filas
-                               if (f["cost_centre"], f["account_code"], f["period_month"])
+                               if (f["entity"], f["cost_centre"], f["account_code"], f["period_month"])
                                not in duplicadas), 2)
 
     notas = ["Budget is stated in USD while the ledger is in local currency, and it "

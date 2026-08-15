@@ -40,8 +40,23 @@ def convert_currency(con, rows, to="USD"):
     Returns result / notes / sql. `result["unconverted"]` is never omitted: an
     empty list is a positive statement that nothing was dropped.
     """
-    tasas = {(m, c): r for m, c, r in
-             con.execute("SELECT period_month, currency, rate_to_usd FROM fx_rates")}
+    # La tabla se llama rate_to_usd y solo sabe convertir A dolares. Aceptar otro
+    # destino y aplicar la misma tasa devolvia un importe en USD con la etiqueta
+    # equivocada - 273 donde eran 157, sin una sola nota. Se rechaza en vez de
+    # calcular mal, porque el parametro existe y alguien lo va a usar.
+    if to != "USD":
+        raise ValueError(
+            f"fx_rates only carries rate_to_usd, so USD is the only target this table "
+            f"supports. Converting to {to} would need cross rates that are not in the "
+            f"pack. Convert to USD and state the basis, or add a rate table that has {to}.")
+
+    tasas, repetidas = {}, {}
+    for m, c, r in con.execute("SELECT period_month, currency, rate_to_usd FROM fx_rates"):
+        if (m, c) in tasas and tasas[(m, c)] != r:
+            # Una clave repetida con otro valor reescala TODO en silencio: el dict se
+            # queda con la ultima fila que devuelva SQLite, que no es un criterio.
+            repetidas.setdefault((m, c), {tasas[(m, c)]}).add(r)
+        tasas[(m, c)] = r
 
     convertidas, sin_tasa, transacciones = [], {}, 0
     for fila in rows:
@@ -62,6 +77,12 @@ def convert_currency(con, rows, to="USD"):
 
     huecos = sorted(sin_tasa.values(), key=lambda h: (h["period_month"], h["currency"]))
     notas = [RATE_BASIS]
+    if repetidas:
+        detalle = "; ".join(f"{m}/{c}: {sorted(v)}" for (m, c), v in sorted(repetidas.items()))
+        notas.append(f"AMBIGUOUS RATES - {len(repetidas)} month/currency key(s) appear more "
+                     f"than once with different values: {detalle}. One was applied and the "
+                     f"choice is arbitrary; every figure below that touches those months is "
+                     f"affected. The rate table needs a version or a type column.")
     if huecos:
         filas = sum(h["rows"] for h in huecos)
         detalle = "; ".join(f"{h['rows']} ledger rows worth {h['amount']:,.2f} "

@@ -142,8 +142,8 @@ def cargar(datos=None):
     q = con.execute
     dup_cuentas = q("""SELECT COUNT(*) FROM (SELECT account_code FROM chart_of_accounts
                        GROUP BY account_code HAVING COUNT(*) > 1)""").fetchone()[0]
-    dup_budget = q("""SELECT COUNT(*) FROM (SELECT cost_centre, account_code, period_month
-                      FROM budget GROUP BY 1,2,3 HAVING COUNT(*) > 1)""").fetchone()[0]
+    dup_budget = q("""SELECT COUNT(*) FROM (SELECT entity, cost_centre, account_code,
+                      period_month FROM budget GROUP BY 1,2,3,4 HAVING COUNT(*) > 1)""").fetchone()[0]
     fx_meses = q("SELECT COUNT(DISTINCT period_month) FROM fx_rates").fetchone()[0]
     fx_mon = q("SELECT COUNT(DISTINCT currency) FROM fx_rates").fetchone()[0]
     fx_filas = q("SELECT COUNT(*) FROM fx_rates").fetchone()[0]

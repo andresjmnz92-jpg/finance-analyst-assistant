@@ -37,8 +37,11 @@ the ones it could not judge. Credit notes make it worse: 31 rows in Meridian are
 exact reversals of real invoices, so a naive detector flags them as duplicates.
 """
 
-# Se agrupa por lo que define un pago, no por cuando se registro.
-CLAVE = ("entity", "cost_centre", "account_code", "vendor_id", "amount")
+# Se agrupa por lo que define un pago, no por cuando se registro. `currency` no es
+# opcional: sin ella, 5.000 EUR y 5.000 USD al mismo proveedor salen como un pago
+# hecho dos veces. En Meridian cada entidad usa una sola moneda y no se nota nunca;
+# en otro dataset con una entidad multimoneda es un duplicado inventado.
+CLAVE = ("entity", "cost_centre", "account_code", "currency", "amount", "vendor_id")
 
 
 def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=None):
@@ -54,9 +57,9 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
     if date_to:
         donde.append("accrual_date <= ?"); params.append(date_to)
 
-    sql = (f"SELECT txn_id, {', '.join(CLAVE)}, accrual_date, currency, doc_ref, memo "
+    sql = (f"SELECT txn_id, {', '.join(CLAVE)}, accrual_date, doc_ref, memo "
            f"FROM gl_transactions WHERE {' AND '.join(donde)} ORDER BY txn_id")
-    cols = ["txn_id", *CLAVE, "accrual_date", "currency", "doc_ref", "memo"]
+    cols = ["txn_id", *CLAVE, "accrual_date", "doc_ref", "memo"]
     filas = [dict(zip(cols, r)) for r in con.execute(sql, params)]
 
     # El mapa de proveedor a grupo: sin el, "Nordwind Logistics" y "NORDWIND LOG."
@@ -69,8 +72,7 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
 
     grupos = {}
     for f in filas:
-        k = (f["entity"], f["cost_centre"], f["account_code"],
-             alias.get(f["vendor_id"], f["vendor_id"]), f["amount"])
+        k = tuple(alias.get(f[c], f[c]) if c == "vendor_id" else f[c] for c in CLAVE)
         grupos.setdefault(k, []).append(f)
 
     candidatos = []
@@ -82,15 +84,14 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
                        - __import__("datetime").date.fromisoformat(a)).days
                       for a, b in zip(fechas, fechas[1:])]
         candidatos.append({
-            "entity": k[0], "cost_centre": k[1], "account_code": k[2],
-            "vendor": k[3], "amount": k[4],
+            **dict(zip(CLAVE, k)), "vendor": k[CLAVE.index("vendor_id")],
             "rows": [{c: m[c] for c in ("txn_id", "accrual_date", "doc_ref", "memo")}
                      for m in miembros],
             "extra_rows": len(miembros) - 1,
             "days_between": separacion,
             "looks_periodic": all(25 <= d <= 35 for d in separacion) if separacion else False,
         })
-    candidatos.sort(key=lambda c: (-c["extra_rows"], -abs(c["amount"])))
+    candidatos.sort(key=lambda c: (-c["extra_rows"], -abs(c["amount"] or 0)))
 
     extras = sum(c["extra_rows"] for c in candidatos)
     periodicos = sum(1 for c in candidatos if c["looks_periodic"])
