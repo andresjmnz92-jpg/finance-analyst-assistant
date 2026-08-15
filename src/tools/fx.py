@@ -32,33 +32,40 @@ def convert_currency(con, rows, to="USD"):
     `period_month` (YYYY-MM). Any other key is passed through untouched, so this
     works on single transactions and on grouped totals alike.
 
+    A row may carry `rows` — how many ledger transactions it stands for. Grouped
+    input always does. It is honoured when counting what could not be converted,
+    because "1 row worth 1,231,309 EUR" reads like one odd payment when it is
+    really 147 transactions. Absent, a row counts as one.
+
     Returns result / notes / sql. `result["unconverted"]` is never omitted: an
     empty list is a positive statement that nothing was dropped.
     """
     tasas = {(m, c): r for m, c, r in
              con.execute("SELECT period_month, currency, rate_to_usd FROM fx_rates")}
 
-    convertidas, sin_tasa = [], {}
+    convertidas, sin_tasa, transacciones = [], {}, 0
     for fila in rows:
         moneda, mes = fila["currency"], fila["period_month"]
         tasa = 1.0 if moneda == to else tasas.get((mes, moneda))
         if tasa is None:
             k = (mes, moneda)
             hueco = sin_tasa.setdefault(k, {"period_month": mes, "currency": moneda,
-                                            "amount": 0.0, "rows": 0})
+                                            "amount": 0.0, "rows": 0, "groups": 0})
             hueco["amount"] += fila["amount"]
-            hueco["rows"] += 1
+            hueco["rows"] += fila.get("rows", 1)
+            hueco["groups"] += 1
             continue
         convertidas.append({**fila, "amount": round(fila["amount"] * tasa, 2),
                             "currency": to, "source_amount": fila["amount"],
                             "source_currency": moneda, "rate": tasa})
+        transacciones += fila.get("rows", 1)
 
     huecos = sorted(sin_tasa.values(), key=lambda h: (h["period_month"], h["currency"]))
     notas = [RATE_BASIS]
     if huecos:
         filas = sum(h["rows"] for h in huecos)
-        detalle = "; ".join(f"{h['rows']} rows worth {h['amount']:,.2f} {h['currency']} "
-                            f"in {h['period_month']}" for h in huecos)
+        detalle = "; ".join(f"{h['rows']} ledger rows worth {h['amount']:,.2f} "
+                            f"{h['currency']} in {h['period_month']}" for h in huecos)
         notas.append(f"NOT CONVERTED - no rate on file for {len(huecos)} month/currency "
                      f"combination(s), covering {filas} rows: {detalle}. Any total below "
                      f"excludes them and is therefore partial.")
@@ -68,7 +75,8 @@ def convert_currency(con, rows, to="USD"):
             "rows": convertidas,
             "total": round(sum(f["amount"] for f in convertidas), 2),
             "currency": to,
-            "rows_converted": len(convertidas),
+            "rows_converted": transacciones,
+            "groups_converted": len(convertidas),
             "unconverted": huecos,
         },
         "notes": notas,
