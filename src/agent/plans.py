@@ -61,7 +61,8 @@ PLANS = {
     "consolidated_spend": {
         "question": "What was total consolidated spend in Q3, in USD?",
         "tools": ["query_ledger", "convert_currency"],
-        "must_declare": ["which year", "the FX basis", "what could not be converted"],
+        "must_declare": ["which year", "the FX basis", "what could not be converted",
+                         "which years can be totalled completely"],
         "model_decides": [],
     },
     "largest_vendors": {

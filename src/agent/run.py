@@ -722,11 +722,48 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
                      date_field=date_field)
     fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
 
+    # LOS OTROS ANOS SE CORREN TAMBIEN, Y NO ES POR COMPLETITUD.
+    # "The most recent year was used, and the same plan answers any of them" es
+    # cierto y no es lo que hace falta decir. Este archivo puede totalizar Q3 2023
+    # entero y Q3 2024 no, porque a septiembre le falta una tasa - y esa diferencia
+    # ES la respuesta a una de las dos preguntas que el enunciado espera que no
+    # tengan una limpia. EXPECTED.md, escrito antes que este codigo, ya daba los dos
+    # anos por eso mismo.
+    #
+    # Cuesta un par de consultas por ano candidato. Medido: el plan entero corre en
+    # 0,01 s. Con un archivo de diez anos serian diez pasadas - sigue siendo barato,
+    # y queda dicho aqui para que nadie se lo encuentre de sorpresa.
+    otros = {}
+    desde_mes, hasta_mes = f"{(int(quarter) - 1) * 3 + 1:02d}", f"{int(quarter) * 3:02d}"
+    for candidato in _anios_con_datos(eje.con, date_field, desde_mes, hasta_mes):
+        if candidato == str(year):
+            continue
+        m = eje.usar(query_ledger, con=eje.con, date_from=f"{candidato}-{desde_mes}-01",
+                     date_to=f"{candidato}-{FIN_TRIMESTRE[int(quarter)]}", date_field=date_field)
+        c = eje.usar(convert_currency, con=eje.con, rows=m["rows"])
+        otros[f"Q{quarter} {candidato}"] = {
+            "total": c["total"], "status": "PARTIAL" if c["unconverted"] else "COMPLETE",
+            "excluded": c["unconverted"]}
+    completos = [p for p, v in ({f"Q{quarter} {year}": {"status": "PARTIAL" if fx["unconverted"]
+                                                        else "COMPLETE"}} | otros).items()
+                 if v["status"] == "COMPLETE"]
+    if otros:
+        eje.trace.decision(
+            f"Every year with Q{quarter} data was totalled, not just the one reported: "
+            + "; ".join(f'{p} = {v["total"]:,.2f} {v["status"]}' for p, v in otros.items())
+            + ". "
+            + (f"Only {', '.join(completos)} can be totalled completely from this file; the rest "
+               f"exclude rows with no FX rate."
+               if completos and len(completos) < len(otros) + 1
+               else "All of them convert completely." if completos
+               else "None of them converts completely."))
+
     return {
         # No se deduce del texto ni se decide de memoria: `unconverted` es una
         # medicion de la herramienta. Vacia significa que nada se quedo fuera.
         "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
         "period": f"Q{quarter} {year}",
+        "other_years": otros,
         "total": fx["total"],
         "currency": fx["currency"],
         "ledger_rows": mayor["row_count"],
