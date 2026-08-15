@@ -54,8 +54,9 @@ PLANS = {
         # Dos resoluciones, una a cada lado del cambio de padre de la 6230. No es un
         # detalle del plan: resolver una sola vez para todo el ano cuenta el gasto de
         # marketing como viajes, o pierde el de viajes, segun la fecha que se elija.
-        "must_declare": ["account validity windows", "which date field"],
-        "model_decides": [],
+        "must_declare": ["account validity windows", "which date field",
+                         "which account the phrase resolved to"],
+        "model_decides": ["which account code the phrase 'travel' means"],
     },
     "consolidated_spend": {
         "question": "What was total consolidated spend in Q3, in USD?",
