@@ -99,6 +99,12 @@ def convert_currency(con, rows, to="USD"):
             "rows_converted": transacciones,
             "groups_converted": len(convertidas),
             "unconverted": huecos,
+            # El rango de tasas de CADA moneda, medido sobre este archivo. Sirve para
+            # acotar lo que no se pudo convertir: "faltan 100 EUR" no dice nada, y
+            # "faltan entre 110 y 120 USD" decide si una desviacion cambia de signo.
+            "rate_range": {m: [min(v), max(v)] for m, v in sorted(
+                {c: [r for (_, cc), r in tasas.items() if cc == c]
+                 for c in {cc for _, cc in tasas}}.items())},
         },
         "notes": notas,
         "sql": [("SELECT period_month, currency, rate_to_usd FROM fx_rates", ())],

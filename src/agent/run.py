@@ -43,6 +43,7 @@ from pathlib import Path
 from src.agent.plans import PLANS
 from src.agent.trace import Trace
 from src.tools.accounts import resolve_accounts
+from src.tools.budget import query_budget
 from src.tools.fx import convert_currency
 from src.tools.ledger import CAMPOS_FECHA, query_ledger
 from src.tools.vendors import normalize_vendors
@@ -149,6 +150,23 @@ def _ventanas(con, desde, hasta):
             fin = hasta
         ventanas.append((ini, fin))
     return ventanas
+
+
+def _identidad(prov):
+    """Turn normalize_vendors' output into two lookups: a name, and a group.
+
+    The ledger stores vendor_id and nothing else, so any breakdown printed
+    straight from it reads "V1021 202,994.59" - a code nobody can act on. And the
+    same company appears under several codes, so a breakdown that does not group
+    shows one vendor twice and calls them two.
+    """
+    nombre = {v["vendor_id"]: v["vendor_name"] for v in prov["vendors"]}
+    grupo, cabeza = {}, {}
+    for g in prov["candidate_groups"]:
+        cabeza[g["key"]] = max(g["members"], key=lambda m: m["txns"])["vendor_name"]
+        for m in g["members"]:
+            grupo[m["vendor_id"]] = g["key"]
+    return nombre, grupo, cabeza
 
 
 def _sumar_periodo(eje, root, desde, hasta, date_field):
@@ -296,7 +314,6 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
     """
     top = int(top)
     prov = eje.usar(normalize_vendors, con=eje.con)
-    nombre = {v["vendor_id"]: v["vendor_name"] for v in prov["vendors"]}
     cajon = {c["vendor_id"] for c in prov["catch_all_vendors"]}
 
     if not (date_from or date_to):
@@ -324,12 +341,7 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
     total_todo = round(sum(por_id.values()), 2)
     sin_proveedor = por_id.pop("", 0.0)
 
-    grupo, cabeza = {}, {}
-    for g in prov["candidate_groups"]:
-        jefe = max(g["members"], key=lambda m: m["txns"])
-        cabeza[g["key"]] = jefe["vendor_name"]
-        for m in g["members"]:
-            grupo[m["vendor_id"]] = g["key"]
+    nombre, grupo, cabeza = _identidad(prov)
 
     def ordenar(agrupar):
         acumulado = {}
@@ -380,6 +392,143 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
     }
 
 
+def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date"):
+    """Worst cost centres against budget for a quarter, and what drives the worst.
+
+    THREE THINGS HAVE TO SURVIVE THIS ANSWER, AND TWO OF THEM CHANGE IT
+
+    1. The budget is duplicated. One centre carries two full sets of figures for
+       the same twelve months with no version column, told apart only by their
+       order in the file. So a deviation is not a number here, it is a RANGE, and
+       reporting one figure without saying which set produced it is the confident
+       wrong answer this exercise is built around.
+
+    2. Actuals are in local currency and the budget is in USD, so a missing rate
+       does not just shrink a total - it makes a centre look UNDER budget. In the
+       fixture OPS-EU/6610 reads -100.00 and its real deviation is +100.00: the
+       sign flips. That is not asserted here, it is bounded. The lowest rate on
+       file for that currency is enough to prove the flip, and the bound is
+       measured by convert_currency rather than assumed.
+
+    3. Worst by value and worst by percent are different questions. Both are
+       reported, because a small centre 400% over is a different problem from a
+       large one 15% over, and the question does not say which it means.
+
+    The driver is a second ledger query over the worst key alone. It consumes the
+    first result and needs no second decision, which is why this stays a written
+    path rather than something the model steers.
+    """
+    top = int(top)
+    year, desde, hasta = _trimestre(eje, year, quarter, date_field)
+    if year is None:
+        return {"status": "REFUSED", "reason": f"no rows in Q{quarter} of any year"}
+
+    mayor = eje.usar(query_ledger, con=eje.con, date_from=desde, date_to=hasta,
+                     group_by=("entity", "cost_centre", "account_code"), date_field=date_field)
+    fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
+
+    def clave(f):
+        return (f["entity"], f["cost_centre"], f["account_code"])
+
+    real, pendiente = {}, {}
+    for f in fx["rows"]:
+        real[clave(f)] = round(real.get(clave(f), 0.0) + f["amount"], 2)
+    huecos = {(h["period_month"], h["currency"]) for h in fx["unconverted"]}
+    for f in mayor["rows"]:
+        if (f["period_month"], f["currency"]) in huecos:
+            d = pendiente.setdefault(clave(f), {})
+            d[f["currency"]] = round(d.get(f["currency"], 0.0) + f["amount"], 2)
+
+    pres = eje.usar(query_budget, con=eje.con,
+                    period_from=f"{desde[:7]}", period_to=f"{hasta[:7]}")
+    plan = {}
+    for b in pres["rows"]:
+        k = (b["entity"], b["cost_centre"], b["account_code"])
+        plan.setdefault(k, {})
+        plan[k][b["version"]] = round(plan[k].get(b["version"], 0.0) + b["amount"], 2)
+
+    minimo = {m: r[0] for m, r in fx["rate_range"].items()}
+    comparacion = []
+    for k in sorted(set(plan) | set(real)):
+        gastado = real.get(k, 0.0)
+        faltante = pendiente.get(k, {})
+        # Cota INFERIOR de lo que falta: la tasa mas baja del archivo para esa
+        # moneda. Si con la mas baja la desviacion ya cambia de signo, cambia con
+        # cualquiera - y eso se puede afirmar sin inventarse la tasa que no existe.
+        suelo = round(sum(imp * minimo.get(mon, 0.0) for mon, imp in faltante.items()), 2)
+        fila = {"entity": k[0], "cost_centre": k[1], "account_code": k[2],
+                "actual": gastado, "budget": plan.get(k, {}), "deviation": {}}
+        for v, presupuestado in sorted(plan.get(k, {}).items()):
+            d = round(gastado - presupuestado, 2)
+            fila["deviation"][v] = {
+                "usd": d,
+                "percent": round(d / presupuestado * 100, 1) if presupuestado else None}
+            if faltante and d < 0 <= round(d + suelo, 2):
+                fila["sign_flips"] = True
+        if faltante:
+            fila["not_converted"] = faltante
+            fila["understated_by_at_least"] = suelo
+        if not plan.get(k):
+            fila["no_budget"] = True
+        comparacion.append(fila)
+
+    def peores(metrica):
+        con_pres = [c for c in comparacion if c["deviation"]]
+        return sorted(con_pres, key=lambda c: -max(
+            (d[metrica] for d in c["deviation"].values() if d[metrica] is not None), default=0)
+        )[:top]
+
+    por_valor, por_pct = peores("usd"), peores("percent")
+    if not por_valor:
+        return {"status": "REFUSED", "period": f"Q{quarter} {year}",
+                "reason": "no key has both actuals and a budget in this period; the budget "
+                          "may not cover it"}
+
+    p = por_valor[0]
+    desglose = eje.usar(query_ledger, con=eje.con, date_from=desde, date_to=hasta,
+                        entity=p["entity"], cost_centre=p["cost_centre"],
+                        accounts=[p["account_code"]], group_by=("vendor_id",),
+                        date_field=date_field)
+    motor = eje.usar(convert_currency, con=eje.con, rows=desglose["rows"])
+    # El desglose se pidio para NOMBRAR al responsable, asi que sale con nombres y
+    # con las fichas de una misma empresa sumadas. Sin esto Meridian imprime V1088
+    # y V1042 como dos proveedores, y son dos fichas de Nordwind.
+    prov = eje.usar(normalize_vendors, con=eje.con)
+    nombre, grupo, cabeza = _identidad(prov)
+    por_prov = {}
+    for f in motor["rows"]:
+        vid = f["vendor_id"]
+        etiqueta = ("(no vendor)" if not vid else
+                    cabeza.get(grupo.get(vid), nombre.get(vid, vid)))
+        por_prov[etiqueta] = round(por_prov.get(etiqueta, 0.0) + f["amount"], 2)
+
+    volteados = [c for c in comparacion if c.get("sign_flips")]
+    if volteados:
+        eje.trace.decision(
+            f"{len(volteados)} centre/account pair(s) read as UNDER budget only because rows "
+            f"could not be converted: "
+            + "; ".join(f'{c["cost_centre"]}/{c["account_code"]}' for c in volteados)
+            + ". At the lowest rate on file for the missing currency the deviation is already "
+              "positive, so the sign is wrong rather than the magnitude.")
+
+    return {
+        "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
+        "period": f"Q{quarter} {year}", "currency": fx["currency"],
+        "worst_by_value": por_valor,
+        "worst_by_percent": por_pct,
+        "budget_versions": pres["versions"],
+        "centres_with_two_sets": pres["centres_with_two_sets"],
+        "driver": {"entity": p["entity"], "cost_centre": p["cost_centre"],
+                   "account_code": p["account_code"],
+                   "by_vendor": dict(sorted(por_prov.items(), key=lambda x: -x[1]))},
+        "sign_flipped_by_missing_rates": [
+            {k: c[k] for k in ("cost_centre", "account_code", "deviation",
+                               "not_converted", "understated_by_at_least")}
+            for c in volteados],
+        "excluded": fx["unconverted"],
+    }
+
+
 def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     """Total spend for a quarter in USD, and what could not be converted.
 
@@ -411,6 +560,7 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
 RUTINAS = {
     "opex_by_cost_centre": opex_by_cost_centre,
     "largest_vendors": largest_vendors,
+    "budget_variance": budget_variance,
     "spend_comparison": spend_comparison,
     "consolidated_spend": consolidated_spend,
 }

@@ -78,9 +78,10 @@ PLANS = {
     "budget_variance": {
         "question": "Which cost centers came in worst against budget in Q3, and what "
                     "does the driver look like?",
-        "tools": ["query_ledger", "convert_currency", "query_budget", "query_ledger"],
+        "tools": ["query_ledger", "convert_currency", "query_budget",
+                  "query_ledger", "normalize_vendors"],
         "must_declare": ["worst by value or by percent", "two budget sets",
-                         "unconverted rows by centre"],
+                         "unconverted rows by centre", "which sign flips because of them"],
         "model_decides": [],           # la variante con modelo elige el segundo desglose
     },
     "policy_breaches": {
