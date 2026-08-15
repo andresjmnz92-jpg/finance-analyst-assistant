@@ -35,6 +35,7 @@ numbers come from another produces an answer that cites a file that was never
 loaded - which already happened here once, in the tools' notes.
 """
 
+import re
 import sqlite3
 import sys
 import time
@@ -44,6 +45,7 @@ from src.agent.plans import PLANS
 from src.agent.trace import Trace
 from src.tools.accounts import resolve_accounts
 from src.tools.budget import query_budget
+from src.tools.documents import read_document
 from src.tools.fx import convert_currency
 from src.tools.ledger import CAMPOS_FECHA, query_ledger
 from src.tools.vendors import normalize_vendors
@@ -615,6 +617,96 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
     }
 
 
+# Dos listas y no una. Un campo llamado employee_id SERIA un denominador, asi que
+# vale para escanear columnas; una frase sobre "employee meals" no lo es, y con la
+# lista ancha la cita del memo salia enterrada entre tres parrafos de dietas.
+DENOMINADOR_COLUMNA = ("fte", "full-time", "full time", "headcount", "head count", "employee")
+DENOMINADOR_FRASE = ("fte", "full-time equivalent", "full time equivalent", "headcount",
+                     "head count")
+
+
+def cost_per_fte(eje, root, date_field="accrual_date"):
+    """Headcount cost per FTE. It refuses, and the refusal is the answer.
+
+    THE NUMERATOR EXISTS AND THE DENOMINATOR DOES NOT
+
+    Payroll cost is in the ledger and is given. The number of FTEs is in none of
+    the five files, so every quotient this question invites is invented. The
+    tempting substitutes are all wrong and all plausible: distinct employees (no
+    such column), row counts (a monthly payroll run is not a person), entity
+    counts (three countries are not three people).
+
+    WHY THE REFUSAL DOES NOT REST ON THE DOCUMENT ALONE
+    Meridian's board memo says outright that headcount lives in the HR system and
+    not in the finance ledger, and that sentence is quoted. But a refusal that
+    depends on finding a sentence is a refusal that stops working the moment the
+    wording changes. The structural argument is checked first and needs no
+    document: no column in any loaded table holds a headcount, and a denominator
+    that is not a column cannot be summed.
+
+    Both are reported, because they fail differently. The schema check survives a
+    rewrite of the memo; the memo explains WHY the column is missing, which is
+    what a manager actually needs to hear before going to ask the People team.
+    """
+    columnas = {}
+    for (tabla,) in eje.con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '\\_%' ESCAPE '\\'"):
+        for fila in eje.con.execute(f"PRAGMA table_info({tabla})"):
+            if any(p in fila[1].lower() for p in DENOMINADOR_COLUMNA):
+                columnas.setdefault(tabla, []).append(fila[1])
+
+    rango = eje.con.execute(
+        f"SELECT MIN({date_field}), MAX({date_field}) FROM gl_transactions").fetchone()
+    filas, resoluciones = _sumar_periodo(eje, root, rango[0], rango[1], date_field)
+    if filas is None:
+        return {"status": "REFUSED", "root": root,
+                "reason": "the root resolved to no posting accounts; see the note"}
+    coste = {}
+    for f in filas:
+        coste[f["currency"]] = round(coste.get(f["currency"], 0.0) + f["amount"], 2)
+
+    # Los documentos se leen enteros y se buscan con los espacios normalizados. Una
+    # busqueda por lineas ya fallo con esta pregunta: la frase que la decide cruza un
+    # salto de linea y el grep devolvia nada.
+    catalogo = eje.usar(read_document, datos_dir=eje.datos_dir)
+    dicho = []
+    for nombre in catalogo["documents"]:
+        doc = eje.usar(read_document, datos_dir=eje.datos_dir, name=nombre)
+        texto = re.sub(r"\s+", " ", doc["text"])
+        for m in re.finditer(r"[^.]*\.", texto):
+            frase = m.group(0).strip()
+            if any(p in frase.lower() for p in DENOMINADOR_FRASE):
+                dicho.append({"document": nombre, "sentence": frase})
+
+    eje.trace.decision(
+        "The denominator is absent. No column in any loaded table holds a headcount, an FTE "
+        "count or an employee identifier"
+        + (f" - the only near matches are {columnas}" if columnas else "")
+        + ". A quotient built from distinct employees, row counts or entity counts would be "
+          "invented: a monthly payroll run is not a person and three entities are not three "
+          "people.")
+    if dicho:
+        eje.trace.decision(
+            "The document pack says so as well: "
+            + " ".join(f'{d["document"]}: "{d["sentence"]}"' for d in dicho))
+    else:
+        eje.trace.decision(
+            "No document in this pack mentions headcount or FTE at all, so nothing explains "
+            "where the figure does live. The refusal rests on the schema alone.")
+
+    return {
+        "status": "REFUSED",
+        "reason": "the ledger holds the payroll cost but no headcount figure exists in this "
+                  "dataset, so any cost per FTE would be invented",
+        "root": root,
+        "payroll_cost_by_currency": coste,
+        "periods_resolved": [{"from": i, "to": f, "accounts": len(h)} for i, f, h in resoluciones],
+        "ledger_rows": sum(f["rows"] for f in filas),
+        "denominator_columns_found": columnas,
+        "what_the_documents_say": dicho,
+    }
+
+
 def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     """Total spend for a quarter in USD, and what could not be converted.
 
@@ -647,6 +739,7 @@ RUTINAS = {
     "opex_by_cost_centre": opex_by_cost_centre,
     "largest_vendors": largest_vendors,
     "budget_variance": budget_variance,
+    "cost_per_fte": cost_per_fte,
     "spend_comparison": spend_comparison,
     "consolidated_spend": consolidated_spend,
 }
