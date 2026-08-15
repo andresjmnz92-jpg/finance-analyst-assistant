@@ -1,7 +1,21 @@
 # Tessera Devices — a fixture dataset with a known answer
 
-**Eighteen transactions, five vendors, ten accounts.** Same columns as Meridian, different numbers,
-and small enough that every figure below was worked out by hand **before any tool existed**.
+**Eighteen transactions, five vendors, eleven account rows.** Same columns as Meridian, different
+numbers, and small enough that every figure below was worked out by hand **before any tool existed**.
+
+**The account hierarchy is three levels deep, like Meridian's**, and uses the same account codes:
+
+```
+6000 Operating Expenses
+  6100 Personnel          6110 Salaries & Wages
+  6200 Travel & Ent.      6210 Airfare  6220 Hotels  6230 Meals (to 2024-06-30)
+  6600 Logistics          6610 Expedited Freight
+  6700 Marketing          6230 Meals (from 2024-07-01)
+```
+
+This matters: Q1 asks for *operating expenses*, which is the **root**. Answering it means walking up
+two levels from the leaf, per transaction date. A two-level fixture would let a tool that only
+climbs one level pass here and fail against Meridian.
 
 ## Why this file exists
 
@@ -32,11 +46,12 @@ nothing is hardcoded to Meridian.
 | --- | --- | --- |
 | 1 | Missing FX rate | `2024-09 / EUR` absent — the grid is 12 months x 2 currencies = 24, file has 23 |
 | 2 | Account changes parent | `6230 Meals` sits under Travel to 2024-06-30, under Marketing from 2024-07-01 |
-| 3 | Budget duplicated | `OPS-US / 6400` has two full sets for Q3: 100/month and 200/month, no version column |
+| 3 | Budget duplicated | `OPS-US / 6610` has two full sets for Q3: 100/month and 200/month, no version column |
 | 4 | Vendor spelled twice | `V001 Aero Freight Ltd` and `V002 AERO FREIGHT LTD.` |
 | 5 | Catch-all vendor | `V004 Sundry Supplier` is not a company |
 | 6 | Rows with no vendor | `T006`, `T013` — payroll, which is correct, not missing data |
 | 7 | Repeated amounts that are **not** duplicates | same vendor, same account, same amount, different months |
+| 8 | Three-level hierarchy with one root | `6000` is the only account with no parent, same shape as Meridian |
 
 ---
 
@@ -105,11 +120,11 @@ Budget is per centre **and account**, so the comparison is at that level.
 
 | Centre / account | Actual Q3 2024 | Budget set A | Deviation A | Budget set B | Deviation B |
 | --- | --- | --- | --- | --- | --- |
-| **OPS-US / 6400** | **1,500.00** (T012+T014+T018) | 300.00 | **+1,200.00 (+400%)** | 600.00 | **+900.00 (+150%)** |
+| **OPS-US / 6610** | **1,500.00** (T012+T014+T018) | 300.00 | **+1,200.00 (+400%)** | 600.00 | **+900.00 (+150%)** |
 | OPS-EU / 6210 | 200.00 (T016) | 300.00 | −100.00 | 300.00 | −100.00 |
-| OPS-EU / 6400 | **0.00 convertible** | 100.00 | **−100.00** | 100.00 | **−100.00** |
+| OPS-EU / 6610 | **0.00 convertible** | 100.00 | **−100.00** | 100.00 | **−100.00** |
 
-**Expected answer: OPS-US / 6400 is worst under both budget sets and under both metrics** — value
+**Expected answer: OPS-US / 6610 is worst under both budget sets and under both metrics** — value
 and percentage. The deviation is reported as a **range, +900 to +1,200**, because the data does not
 say which budget set is current.
 
@@ -117,7 +132,7 @@ say which budget set is current.
 version column, exactly as in Meridian. Any tool reading them must therefore either report both or
 declare the rule it used — and a loader that silently deduplicates destroys the question.
 
-**And the second thing that must appear:** `OPS-EU / 6400` shows −100.00 **only because T017 could
+**And the second thing that must appear:** `OPS-EU / 6610` shows −100.00 **only because T017 could
 not be converted**. Its real spend is 100.00 EUR = 200.00 USD, which makes the true deviation
 **+100.00**. **The sign flips.** A tool that reports OPS-EU as under budget without flagging the
 unconverted row is producing a confident wrong answer — the same failure that hides in Meridian
@@ -151,7 +166,7 @@ failure in miniature.
 
 **Expected behaviour: refuse, and say why.**
 
-- Payroll cost is available and must be given: account 5100 = **2,000.00** (T006 + T013).
+- Payroll cost is available and must be given: account 6110 = **2,000.00** (T006 + T013).
 - The FTE denominator does not exist in any of the five files.
 - The policy document says it outright: *"Headcount and full-time-equivalent reporting is produced
   by the People team in the HR system and is not maintained in the finance ledger."*
@@ -165,7 +180,7 @@ Grouping on entity + cost centre + account + vendor + amount, **ignoring dates**
 
 | Group | Rows | Genuine duplicate? |
 | --- | --- | --- |
-| OPS-US / 6400 / V001 / 500.00 | T012, T018 | **yes, by design** |
+| OPS-US / 6610 / V001 / 500.00 | T012, T018 | **yes, by design** |
 | OPS-US / 6210 / V001 / 100.00 | T001, T004 | no — two flights, 2023-04 and 2023-07 |
 | OPS-US / 6210 / V001 / 200.00 | T007, T010 | no — 2024-04 and 2024-07 |
 | OPS-US / 6230 / V004 / 200.00 | T009, T011 | no — different months |
@@ -187,6 +202,9 @@ amount and would otherwise form a sixth group made entirely of noise.
 
 ## What this fixture cannot test
 
-It has no cost centre rename, no credit notes, and only one entity per currency. Those are exercised
-against Meridian only. Adding them here would have made the hand-arithmetic unverifiable, which
-would defeat the whole purpose of the file.
+It has **no cost centre rename**, **no credit notes**, **only one entity per currency**, and **one
+internal document instead of four** — so nothing here exercises reading a contract or a board memo.
+Those are tested against Meridian only.
+
+Adding them would have made the hand-arithmetic unverifiable, which defeats the purpose of the file.
+The division of labour is deliberate: **Tessera proves the maths, Meridian proves the judgement.**

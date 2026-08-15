@@ -1,7 +1,11 @@
 """Load a set of five CSVs into a local SQLite file.
 
-    python -m src.load                          # Meridian, into meridian.db
-    python -m src.load evals/fixtures tessera.db  # the fixture, into its own db
+    python -m src.load                    # data/          -> data.db
+    python -m src.load evals/fixtures     # evals/fixtures -> fixtures.db
+
+The database name is derived from the folder, never passed in. An earlier version
+took it as a second argument, which meant forgetting it loaded the fixture on top
+of the real data - silently, and with a success message.
 
 TWO DATASETS, ONE LOADER. The brief says the tools will be run against a second
 dataset with the same columns. Rather than take that on faith, the eval suite runs
@@ -68,18 +72,16 @@ INDICES = [
 ]
 
 
-def cargar(datos=None, db=None):
+def cargar(datos=None):
     datos = Path(datos) if datos else RAIZ / "data"
-    DB = Path(db) if db else RAIZ / "meridian.db"
     if not datos.is_absolute():
         datos = RAIZ / datos
-    if not DB.is_absolute():
-        DB = RAIZ / DB
+    DB = RAIZ / f"{datos.name}.db"
 
     if DB.exists():
         DB.unlink()
     con = sqlite3.connect(DB)
-    resumen = []
+    resumen, avisos = [], []
 
     for archivo, tabla, columnas in TABLAS:
         ruta = datos / archivo
@@ -94,9 +96,17 @@ def cargar(datos=None, db=None):
         with ruta.open(encoding="utf-8-sig", newline="") as f:
             lector = csv.DictReader(f)
             nombres = [n for n, _ in columnas]
-            faltan = set(nombres) - set(lector.fieldnames or [])
+            presentes = set(lector.fieldnames or [])
+            faltan = set(nombres) - presentes
             if faltan:
                 sys.exit(f"{archivo}: expected columns not found: {sorted(faltan)}")
+
+            # Columnas que no esperabamos. NO se cargan, pero callarselas seria peor:
+            # si un dataset futuro trae budget_version, esa columna resuelve por si
+            # sola la ambiguedad del presupuesto duplicado, y nadie se enteraria.
+            extra = sorted(presentes - set(nombres))
+            if extra:
+                avisos.append(f"{archivo}: unrecognised columns present and NOT loaded: {extra}")
 
             reales = [n for n, t in columnas if t.startswith("REAL")]
             filas = []
@@ -118,9 +128,12 @@ def cargar(datos=None, db=None):
         con.execute(sql)
     con.commit()
 
-    print(f"{DB.name}  ({DB.stat().st_size / 1024:,.0f} KB)")
+    print(f"{DB.name}  ({DB.stat().st_size / 1024:,.0f} KB)   from {datos}")
     for tabla, n in resumen:
         print(f"  {tabla:20s} {n:>7,} rows")
+
+    for a in avisos:
+        print(f"\n  WARNING  {a}")
 
     # Sanity checks. These are not tests of the loader - they are the three
     # ambiguities in the source data, restated so the load fails loudly if a
@@ -142,4 +155,4 @@ def cargar(datos=None, db=None):
 
 
 if __name__ == "__main__":
-    cargar(*sys.argv[1:3])
+    cargar(*sys.argv[1:2])
