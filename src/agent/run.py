@@ -46,6 +46,7 @@ from src.agent.trace import Trace
 from src.tools.accounts import resolve_accounts
 from src.tools.budget import query_budget
 from src.tools.documents import read_document
+from src.tools.duplicates import find_duplicate_payments
 from src.tools.fx import convert_currency
 from src.tools.ledger import CAMPOS_FECHA, query_ledger
 from src.tools.vendors import normalize_vendors
@@ -707,6 +708,51 @@ def cost_per_fte(eje, root, date_field="accrual_date"):
     }
 
 
+def duplicate_payments(eje, date_from=None, date_to=None):
+    """Payments that could be the same one made twice. Candidates, never verdicts.
+
+    THE QUESTION IS "DID WE PAY ANYONE TWICE" AND THE HONEST ANSWER IS "HERE IS
+    WHAT COULD BE, AND WHY NOBODY CAN TELL FROM THIS DATA"
+
+    In the fixture, four of the five groups are false positives: two flights three
+    months apart, two meals in different months, two identical invoices a year
+    apart. Nothing in these columns separates them from the one planted duplicate.
+    A tool that reported a single confident duplicate would have thrown away the
+    four it could not judge, and would be wrong about the one it kept as often as
+    not.
+
+    RUN TWICE, BECAUSE THE VENDOR DECISION CHANGES THE ANSWER
+    The same company under two spellings hides a duplicate from a vendor_id match.
+    normalize_vendors proposes groups and refuses to apply them; this plan is the
+    caller that decides, and it decides to apply them - a missed duplicate costs
+    money and an extra candidate costs a reviewer five minutes. Both runs are
+    reported so the decision can be checked rather than trusted.
+    """
+    prov = eje.usar(normalize_vendors, con=eje.con)
+    suelto = eje.usar(find_duplicate_payments, con=eje.con,
+                      date_from=date_from, date_to=date_to)
+    agrupado = eje.usar(find_duplicate_payments, con=eje.con,
+                        vendor_groups=prov["candidate_groups"],
+                        date_from=date_from, date_to=date_to)
+
+    eje.trace.decision(
+        f"The proposed vendor groupings WERE applied before matching. Without them: "
+        f"{suelto['group_count']} candidate group(s) covering {suelto['extra_rows']} extra "
+        f"row(s). With them: {agrupado['group_count']} group(s) and "
+        f"{agrupado['extra_rows']} extra row(s). Applying them can only widen the net, and "
+        f"the ungrouped result is reported beside it.")
+
+    return {
+        "status": "COMPLETE",
+        "candidate_groups": agrupado["candidate_groups"],
+        "group_count": agrupado["group_count"],
+        "extra_rows": agrupado["extra_rows"],
+        "without_vendor_grouping": {"group_count": suelto["group_count"],
+                                    "extra_rows": suelto["extra_rows"]},
+        "rows_without_vendor": agrupado["rows_without_vendor"],
+    }
+
+
 def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     """Total spend for a quarter in USD, and what could not be converted.
 
@@ -777,6 +823,7 @@ RUTINAS = {
     "largest_vendors": largest_vendors,
     "budget_variance": budget_variance,
     "cost_per_fte": cost_per_fte,
+    "duplicate_payments": duplicate_payments,
     "spend_comparison": spend_comparison,
     "consolidated_spend": consolidated_spend,
 }

@@ -120,9 +120,21 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
         notas.append("Vendor variants were NOT merged. If the same company appears under more "
                      "than one vendor_id, duplicates between the spellings are invisible here.")
 
+    # Lo que este filtro DEJA FUERA lo cuenta quien lo aplica. Las filas sin
+    # proveedor - nomina - son identicas en importe entre si y formarian grupos de
+    # puro ruido, asi que se excluyen a proposito; excluir a proposito y no decirlo
+    # es lo mismo que excluir por error.
+    fuera = con.execute(
+        "SELECT COUNT(*) FROM gl_transactions WHERE vendor_id = '' OR vendor_id IS NULL"
+    ).fetchone()[0]
+    if fuera:
+        notas.append(f"{fuera} row(s) carry no vendor at all and were excluded before matching. "
+                     f"Payroll runs are identical in amount to each other and would form groups "
+                     f"made entirely of noise. Excluded on purpose, not missed.")
+
     return {
         "result": {"candidate_groups": candidatos, "group_count": len(candidatos),
-                   "extra_rows": extras},
+                   "extra_rows": extras, "rows_without_vendor": fuera},
         "notes": notas,
         "sql": [(sql, tuple(params))],
     }
