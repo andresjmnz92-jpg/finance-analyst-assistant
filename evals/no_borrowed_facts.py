@@ -22,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.tools.accounts import resolve_accounts          # noqa: E402
+from src.tools.accounts import list_account_names, resolve_accounts  # noqa: E402
 from src.tools.budget import query_budget                # noqa: E402
 from src.tools.documents import read_document            # noqa: E402
 from src.tools.duplicates import find_duplicate_payments  # noqa: E402
@@ -52,6 +52,7 @@ def revisar(db, datos_dir):
                          accounts=hojas, group_by=("cost_centre",))
 
     salidas = {
+        "list_account_names": list_account_names(con, "2024-07-15"),
         "resolve_accounts": resolve_accounts(con, "6200", "2024-07-15"),
         "query_ledger": filas,
         "convert_currency": convert_currency(con, filas["result"]["rows"]),

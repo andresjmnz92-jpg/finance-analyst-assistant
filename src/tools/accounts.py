@@ -26,6 +26,42 @@ account that is nobody's parent, which is a derived fact, not a stated one.
 """
 
 
+def list_account_names(con, as_of):
+    """The menu: every account in force on `as_of`, with its parent.
+
+    THIS TOOL EXISTS BECAUSE THE QUESTION AND THE LEDGER DO NOT SHARE A VOCABULARY.
+    A question says "operating expenses", "travel", "headcount". The ledger stores
+    account codes. Something has to map one to the other, and matching the
+    question's words against account names in code was measured against Meridian
+    before being rejected:
+
+        travel            -> 1 account   ok
+        operating expense -> 2 accounts  (6000 Operating Expenses AND 6830 Other
+                                          Operating Expense - one inside the other)
+        headcount         -> 0 accounts  <- and this is question 7
+        FTE               -> 0 accounts
+
+    No account here is called "headcount". They are called Personnel and Salaries
+    & Wages, and no string rule bridges that. A model reads the list and sees it.
+    So the model chooses, and this tool is what it chooses FROM - which also means
+    it cannot invent an account: resolve_accounts refuses a code that is not in
+    this list, or not in force on this date.
+
+    Meridian's whole chart is 33 names and 633 characters, so showing it costs
+    almost nothing. A chart too large to show would need a different answer, and
+    that is stated rather than pretended.
+    """
+    sql = ("SELECT DISTINCT account_code, account_name, parent_code "
+           "FROM chart_of_accounts WHERE ? BETWEEN valid_from AND valid_to "
+           "ORDER BY account_code")
+    filas = [{"account_code": c, "account_name": n, "parent_code": p}
+             for c, n, p in con.execute(sql, (as_of,))]
+    nota = (f"{len(filas)} account(s) in force on {as_of}. Codes are values, not "
+            f"structure: nothing outside this list may be used as a root.")
+    return {"result": {"accounts": filas, "as_of": as_of}, "notes": [nota],
+            "sql": [(sql, (as_of,))]}
+
+
 def resolve_accounts(con, root, as_of):
     """Leaf accounts under `root`, as the hierarchy stood on `as_of` (YYYY-MM-DD).
 

@@ -36,8 +36,17 @@ PLANS = {
     "opex_by_cost_centre": {
         "question": "What did we spend on operating expenses in Q2, by cost center?",
         "tools": ["resolve_accounts", "query_ledger", "convert_currency"],
-        "must_declare": ["which year", "which date field defines the period"],
-        "model_decides": [],
+        "must_declare": ["which year", "which date field defines the period",
+                         "which account the phrase resolved to"],
+        # Medido antes de decidirlo: contra Meridian, 'travel' casa con una cuenta,
+        # 'operating expense' con dos (6000 y 6830, una dentro de la otra) y
+        # 'headcount' con NINGUNA - no hay cuenta que se llame asi, se llaman
+        # Personnel y Salaries & Wages. Ninguna regla de texto salva esa distancia,
+        # asi que el modelo elige de la lista que devuelve list_account_names y el
+        # codigo lo ata: resolve_accounts no resuelve nada que no este vigente ahi.
+        # Lo que cuesta equivocarse: con raiz 6830 este mismo plan responde
+        # 91,015.92 donde la respuesta es 12,780,721.78.
+        "model_decides": ["which account code the phrase 'operating expenses' means"],
     },
     "spend_comparison": {
         "question": "How did travel spend in 2024 compare to 2023?",

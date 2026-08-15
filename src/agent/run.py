@@ -42,6 +42,7 @@ from pathlib import Path
 
 from src.agent.plans import PLANS
 from src.agent.trace import Trace
+from src.tools.accounts import resolve_accounts
 from src.tools.fx import convert_currency
 from src.tools.ledger import CAMPOS_FECHA, query_ledger
 
@@ -86,7 +87,75 @@ def _anios_con_datos(con, campo, desde_mes, hasta_mes):
         f"WHERE substr({campo},6,2) BETWEEN ? AND ? ORDER BY 1", (desde_mes, hasta_mes))]
 
 
+def _trimestre(eje, year, quarter, date_field):
+    """Resolve "Q3" into real dates, and say out loud which year was taken.
+
+    Shared by every plan that takes a quarter, so the sentence declaring the
+    choice is written once. Two plans wording the same decision differently is
+    how a caveat quietly stops matching what the code did.
+    """
+    quarter = int(quarter)
+    desde_mes, hasta_mes = f"{(quarter - 1) * 3 + 1:02d}", f"{quarter * 3:02d}"
+    anios = _anios_con_datos(eje.con, date_field, desde_mes, hasta_mes)
+    if year is None and anios:
+        year = anios[-1]
+        if len(anios) > 1:
+            eje.trace.decision(
+                f"The question does not say which year. This file holds Q{quarter} rows in "
+                f"{', '.join(anios)}; the most recent ({year}) was used, and the same plan "
+                f"answers any of them.")
+    if not anios:
+        eje.trace.decision(f"No rows fall in Q{quarter} of any year in this file.")
+        return None, None, None
+    return year, f"{year}-{desde_mes}-01", f"{year}-{FIN_TRIMESTRE[quarter]}"
+
+
 # -- los planes ------------------------------------------------------------------
+
+def opex_by_cost_centre(eje, root, year=None, quarter=2, date_field="accrual_date"):
+    """Spend under a rollup for a quarter, split by cost centre.
+
+    `root` has NO default, and that is the design. Writing 6000 here would be the
+    one thing the brief names - "don't hardcode anything to this one" - and an
+    account code is a value, not a column. The caller supplies it: the model at
+    runtime after reading list_account_names, or a test by hand.
+
+    Nothing validates the model's choice here because nothing needs to.
+    resolve_accounts already answers with an empty leaf list and says which case
+    it is - the code does not exist, or it existed but was not in force on this
+    date. All this plan does is refuse instead of reporting the zero that follows.
+    """
+    year, desde, hasta = _trimestre(eje, year, quarter, date_field)
+    if year is None:
+        return {"status": "REFUSED", "reason": f"no rows in Q{quarter} of any year"}
+
+    # Resuelto al CIERRE del trimestre, y esa fecha viaja en la respuesta. Si alguna
+    # cuenta cambia de padre dentro del periodo la propia herramienta lo dice - no
+    # se afirma aqui que no pase, porque eso seria un dato de Meridian.
+    cuentas = eje.usar(resolve_accounts, con=eje.con, root=root, as_of=hasta)
+    if not cuentas["leaves"]:
+        return {"status": "REFUSED", "root": root, "as_of": hasta,
+                "reason": "the root resolved to no posting accounts; see the note"}
+
+    mayor = eje.usar(query_ledger, con=eje.con, date_from=desde, date_to=hasta,
+                     accounts=cuentas["leaves"], group_by=("cost_centre",),
+                     date_field=date_field)
+    fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
+
+    por_centro = {}
+    for f in fx["rows"]:
+        por_centro[f["cost_centre"]] = round(por_centro.get(f["cost_centre"], 0.0)
+                                             + f["amount"], 2)
+    return {
+        "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
+        "period": f"Q{quarter} {year}",
+        "root": root, "leaf_accounts": len(cuentas["leaves"]),
+        "by_cost_centre": dict(sorted(por_centro.items(), key=lambda x: -x[1])),
+        "total": fx["total"], "currency": fx["currency"],
+        "ledger_rows": mayor["row_count"],
+        "excluded": fx["unconverted"],
+    }
+
 
 def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     """Total spend for a quarter in USD, and what could not be converted.
@@ -95,22 +164,11 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     currencies, so a missing rate cannot vanish inside a subtotal. It comes back
     as `unconverted`, which is what makes this answer PARTIAL rather than wrong.
     """
-    desde_mes, hasta_mes = f"{(quarter - 1) * 3 + 1:02d}", f"{quarter * 3:02d}"
-    anios = _anios_con_datos(eje.con, date_field, desde_mes, hasta_mes)
-    if not anios:
-        eje.trace.decision(f"No rows fall in Q{quarter} of any year in this file.")
-        return {"status": "REFUSED", "period": f"Q{quarter}", "reason": "no rows in that quarter"}
+    year, desde, hasta = _trimestre(eje, year, quarter, date_field)
     if year is None:
-        year = anios[-1]
-        if len(anios) > 1:
-            eje.trace.decision(
-                f"The question does not say which year. This file holds Q{quarter} rows in "
-                f"{', '.join(anios)}; the most recent ({year}) was used, and the same plan "
-                f"answers any of them.")
+        return {"status": "REFUSED", "period": f"Q{quarter}", "reason": "no rows in that quarter"}
 
-    mayor = eje.usar(query_ledger, con=eje.con,
-                     date_from=f"{year}-{desde_mes}-01",
-                     date_to=f"{year}-{FIN_TRIMESTRE[quarter]}",
+    mayor = eje.usar(query_ledger, con=eje.con, date_from=desde, date_to=hasta,
                      date_field=date_field)
     fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
 
@@ -128,6 +186,7 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
 
 
 RUTINAS = {
+    "opex_by_cost_centre": opex_by_cost_centre,
     "consolidated_spend": consolidated_spend,
 }
 
@@ -141,13 +200,24 @@ def _comprobar_ruta(nombre, trace):
     plan changed and the declaration was not updated, or the declaration was
     wrong from the start. Both are bugs in this repository, and neither can
     happen to somebody else's data.
+
+    A REFUSAL IS ALLOWED TO STOP EARLY, AND NOT TO WANDER OFF.
+    The first version of this demanded the full sequence every time, and fired on
+    a correct refusal: asked for a root that does not exist, the plan called
+    resolve_accounts, was told nothing resolved, and stopped - one tool where
+    three were declared. Being a prefix is what both cases have in common, and a
+    finished run has to be the whole prefix.
     """
     declarado = list(PLANS[nombre]["tools"])
     real = [p["tool"] for p in trace.steps]
-    if declarado != real:
+    if real != declarado[:len(real)]:
         raise AssertionError(
-            f"{nombre}: plans.py declares {declarado}, the run called {real}. "
-            f"One of the two is wrong - fix it, do not relax this check.")
+            f"{nombre}: plans.py declares {declarado}, the run called {real} - not even the "
+            f"beginning of it. One of the two is wrong; do not relax this check.")
+    if trace.status != "REFUSED" and real != declarado:
+        raise AssertionError(
+            f"{nombre}: the run stopped after {real} but did not refuse, while plans.py "
+            f"declares {declarado}. A short path with a confident answer is the bug.")
 
 
 def run(nombre, con, datos_dir=None, dataset=None, **params):
@@ -174,6 +244,9 @@ if __name__ == "__main__":
     db = RAIZ / (sys.argv[2] if len(sys.argv) > 2 else "data.db")
     if not db.exists():
         sys.exit(f"{db.name} not found. Run: python -m src.load")
+    # Todo llega como texto y se queda como texto. Convertir '6000' a entero lo
+    # haria dejar de casar contra una columna TEXT - cero filas y ni un aviso.
+    params = dict(a.split("=", 1) for a in sys.argv[3:] if "=" in a)
     con = sqlite3.connect(db)
-    print(run(nombre, con, dataset=db.name).render())
+    print(run(nombre, con, dataset=db.name, **params).render())
     con.close()
