@@ -11,7 +11,7 @@ There is no version column. Nothing in the pack says which is current. Three
 documented explanations were tested and all three fail:
 
     the 4% H2 cut in the board memo   -> set B is +14.1% in H1 and +14.6% in H2
-    the plan restated onto OPS-AMER   -> 216 of 228 pairs differ in amount
+    the plan restated onto OPS-AMER   -> 228 of 228 pairs differ in amount
     a uniform rescale                 -> pair ratios run from 0.755 to 1.709
 
 So the tool returns BOTH sets and says it cannot choose. A caller that wants one

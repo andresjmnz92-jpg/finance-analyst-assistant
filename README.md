@@ -14,9 +14,9 @@ the ledger, reads the policy, checks the budget and shows exactly what it did.
 | ✅ [`ARCHITECTURE.md`](ARCHITECTURE.md) | The tool design and where the model is and is not in the loop |
 | ✅ The seven tools | Built and checked against both datasets; see [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | ✅ [`NOTES.md`](NOTES.md) | What went wrong, how it was noticed, what was cut |
-| ✅ One check that runs | `python -m evals.no_borrowed_facts` |
-| ✅ The trace, and the executor that fills it | `python -m src.agent.run consolidated_spend` — **1 of the 8 plans wired**, and it runs with no model at all |
-| ⬜ The other seven plans, the CLI, and the router | |
+| ✅ Two checks that run | `python -m evals.no_borrowed_facts` and `python -m evals.guards` |
+| ✅ The trace, and the executor that fills it | `python -m src.agent.run <plan>` — **5 of the 8 plans wired**, and they run with no model at all |
+| ⬜ The other three plans, the CLI, and the router | `policy_breaches`, `cost_per_fte`, `duplicate_payments` |
 | ⬜ The eval runner over all eight questions | |
 
 ```

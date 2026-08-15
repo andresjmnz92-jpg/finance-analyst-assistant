@@ -95,19 +95,33 @@ def _trimestre(eje, year, quarter, date_field):
     Shared by every plan that takes a quarter, so the sentence declaring the
     choice is written once. Two plans wording the same decision differently is
     how a caveat quietly stops matching what the code did.
+
+    A YEAR THAT WAS GIVEN IS CHECKED AS HARD AS ONE THAT WAS PICKED.
+    The first version only measured the years available in order to CHOOSE one,
+    and skipped the check entirely when a year arrived as an argument. Asked for
+    Q3 2099 it returned COMPLETE, total 0.00 - a year with no rows reading as a
+    quarter with no spend. The model is what supplies that argument, having read
+    it out of the question, so this is the likeliest way a wrong year ever
+    arrives.
     """
     quarter = int(quarter)
     desde_mes, hasta_mes = f"{(quarter - 1) * 3 + 1:02d}", f"{quarter * 3:02d}"
     anios = _anios_con_datos(eje.con, date_field, desde_mes, hasta_mes)
-    if year is None and anios:
+    if not anios:
+        eje.trace.decision(f"No rows fall in Q{quarter} of any year in this file.")
+        return None, None, None
+    if year is None:
         year = anios[-1]
         if len(anios) > 1:
             eje.trace.decision(
                 f"The question does not say which year. This file holds Q{quarter} rows in "
                 f"{', '.join(anios)}; the most recent ({year}) was used, and the same plan "
                 f"answers any of them.")
-    if not anios:
-        eje.trace.decision(f"No rows fall in Q{quarter} of any year in this file.")
+    elif str(year) not in anios:
+        eje.trace.decision(
+            f"Q{quarter} {year} was asked for and this file has no rows in it. The years "
+            f"with Q{quarter} data are {', '.join(anios)}. Answering zero would read as no "
+            f"spend rather than no data.")
         return None, None, None
     return year, f"{year}-{desde_mes}-01", f"{year}-{FIN_TRIMESTRE[quarter]}"
 
@@ -169,8 +183,19 @@ def _identidad(prov):
     return nombre, grupo, cabeza
 
 
-def _sumar_periodo(eje, root, desde, hasta, date_field):
-    """Resolve and query a period window by window. Returns the ledger rows."""
+def _sumar_periodo(eje, root, desde, hasta, date_field, group_by=()):
+    """Resolve and query a period window by window. Returns the ledger rows.
+
+    Every plan that sums a rollup over a period goes through here, and that is
+    the point. opex_by_cost_centre resolved ONCE at the close of the quarter and
+    justified it in a comment: "if an account changes parent inside the period
+    the tool says so". Half true. resolve_accounts warns about multi-window
+    accounts that are inside the rollup AS OF the date it was given, so an
+    account that LEFT the rollup earlier in the period is not in that scope and
+    never triggers the warning - its transactions from while it still belonged
+    simply vanish from the total. Windows remove the whole class instead of
+    warning about half of it.
+    """
     filas, resoluciones = [], []
     for ini, fin in _ventanas(eje.con, desde, hasta):
         cuentas = eje.usar(resolve_accounts, con=eje.con, root=root, as_of=ini)
@@ -178,7 +203,8 @@ def _sumar_periodo(eje, root, desde, hasta, date_field):
             return None, resoluciones
         resoluciones.append((ini, fin, cuentas["leaves"]))
         trozo = eje.usar(query_ledger, con=eje.con, date_from=ini, date_to=fin,
-                         accounts=cuentas["leaves"], date_field=date_field)
+                         accounts=cuentas["leaves"], group_by=group_by,
+                         date_field=date_field)
         filas += trozo["rows"]
     return filas, resoluciones
 
@@ -197,23 +223,27 @@ def opex_by_cost_centre(eje, root, year=None, quarter=2, date_field="accrual_dat
     resolve_accounts already answers with an empty leaf list and says which case
     it is - the code does not exist, or it existed but was not in force on this
     date. All this plan does is refuse instead of reporting the zero that follows.
+
+    The period is cut into windows by _sumar_periodo, same as spend_comparison.
+    This plan used to resolve once at the close of the quarter, which is only safe
+    while no account leaves the rollup mid-period - and nothing was checking that.
     """
     year, desde, hasta = _trimestre(eje, year, quarter, date_field)
     if year is None:
-        return {"status": "REFUSED", "reason": f"no rows in Q{quarter} of any year"}
+        return {"status": "REFUSED", "reason": f"no rows in Q{quarter} of that year"}
 
-    # Resuelto al CIERRE del trimestre, y esa fecha viaja en la respuesta. Si alguna
-    # cuenta cambia de padre dentro del periodo la propia herramienta lo dice - no
-    # se afirma aqui que no pase, porque eso seria un dato de Meridian.
-    cuentas = eje.usar(resolve_accounts, con=eje.con, root=root, as_of=hasta)
-    if not cuentas["leaves"]:
-        return {"status": "REFUSED", "root": root, "as_of": hasta,
+    filas, resoluciones = _sumar_periodo(eje, root, desde, hasta, date_field,
+                                         group_by=("cost_centre",))
+    if filas is None:
+        return {"status": "REFUSED", "root": root,
                 "reason": "the root resolved to no posting accounts; see the note"}
-
-    mayor = eje.usar(query_ledger, con=eje.con, date_from=desde, date_to=hasta,
-                     accounts=cuentas["leaves"], group_by=("cost_centre",),
-                     date_field=date_field)
-    fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
+    if len(resoluciones) > 1:
+        eje.trace.decision(
+            f"Q{quarter} {year} was split into {len(resoluciones)} window(s) at "
+            f"{', '.join(r[0] for r in resoluciones[1:])} because the chart of accounts "
+            f"changes there, so each transaction counts under the parent it had on its "
+            f"own date.")
+    fx = eje.usar(convert_currency, con=eje.con, rows=filas)
 
     por_centro = {}
     for f in fx["rows"]:
@@ -222,10 +252,11 @@ def opex_by_cost_centre(eje, root, year=None, quarter=2, date_field="accrual_dat
     return {
         "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
         "period": f"Q{quarter} {year}",
-        "root": root, "leaf_accounts": len(cuentas["leaves"]),
+        "root": root,
+        "windows": [{"from": i, "to": f, "accounts": len(h)} for i, f, h in resoluciones],
         "by_cost_centre": dict(sorted(por_centro.items(), key=lambda x: -x[1])),
         "total": fx["total"], "currency": fx["currency"],
-        "ledger_rows": mayor["row_count"],
+        "ledger_rows": sum(f["rows"] for f in filas),
         "excluded": fx["unconverted"],
     }
 
@@ -455,7 +486,13 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
         # Cota INFERIOR de lo que falta: la tasa mas baja del archivo para esa
         # moneda. Si con la mas baja la desviacion ya cambia de signo, cambia con
         # cualquiera - y eso se puede afirmar sin inventarse la tasa que no existe.
-        suelo = round(sum(imp * minimo.get(mon, 0.0) for mon, imp in faltante.items()), 2)
+        #
+        # Una moneda que NO aparece ni una vez en fx_rates no tiene cota. Antes se
+        # le ponia 0.0 por defecto, que se lee como "no falta nada" y podia tapar
+        # un cambio de signo real. Sin tasas no hay cota, y eso se dice.
+        sin_cota = sorted(m for m in faltante if m not in minimo)
+        suelo = round(sum(imp * minimo[mon] for mon, imp in faltante.items()
+                          if mon in minimo), 2)
         fila = {"entity": k[0], "cost_centre": k[1], "account_code": k[2],
                 "actual": gastado, "budget": plan.get(k, {}), "deviation": {}}
         for v, presupuestado in sorted(plan.get(k, {}).items()):
@@ -465,18 +502,28 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                 "percent": round(d / presupuestado * 100, 1) if presupuestado else None}
             if faltante and d < 0 <= round(d + suelo, 2):
                 fila["sign_flips"] = True
+        # Presupuesto cero con gasto real: el porcentaje no es 0, es indefinido, y
+        # ordenarlo como 0 saca del ranking justo al centro que gasta sin plan.
+        if any(p == 0 for p in plan.get(k, {}).values()) and gastado > 0:
+            fila["percent_undefined_zero_budget"] = True
         if faltante:
             fila["not_converted"] = faltante
             fila["understated_by_at_least"] = suelo
+            if sin_cota:
+                fila["no_rate_at_all_for"] = sin_cota
         if not plan.get(k):
             fila["no_budget"] = True
         comparacion.append(fila)
 
     def peores(metrica):
         con_pres = [c for c in comparacion if c["deviation"]]
-        return sorted(con_pres, key=lambda c: -max(
-            (d[metrica] for d in c["deviation"].values() if d[metrica] is not None), default=0)
-        )[:top]
+
+        def puntua(c):
+            if metrica == "percent" and c.get("percent_undefined_zero_budget"):
+                return float("inf")
+            return max((d[metrica] for d in c["deviation"].values() if d[metrica] is not None),
+                       default=0)
+        return sorted(con_pres, key=lambda c: -puntua(c))[:top]
 
     por_valor, por_pct = peores("usd"), peores("percent")
     if not por_valor:

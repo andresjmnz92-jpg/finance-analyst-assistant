@@ -117,14 +117,20 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
     # total sale mas bajo y nada dice por que. Se mide sobre las filas que este
     # filtro devuelve, no sobre la tabla entera - un aviso sobre creditos que no
     # entran en esta respuesta seria ruido.
+    #
+    # POR MONEDA, y la primera version no lo era. Sumaba los importes negativos de
+    # todas las monedas juntas: en Meridian eso daba -329,539.17, que son 68,917.97
+    # CAD + 112,441.83 EUR + 148,179.37 USD apilados. Un numero sin significado, en
+    # la herramienta cuyo docstring dice que nunca suma entre monedas.
     creditos = con.execute(
-        f"SELECT COUNT(*), ROUND(SUM(amount),2) FROM gl_transactions "
-        + (f"WHERE {' AND '.join(donde)} AND amount < 0" if donde else "WHERE amount < 0"),
-        params).fetchone()
-    if creditos[0]:
-        notas.append(f"{creditos[0]} row(s) carry a negative amount totalling {creditos[1]:,.2f} "
-                     f"and are netted against the rest, which is the usual convention and is "
-                     f"invisible in a total. Gross spend is higher by that amount.")
+        f"SELECT currency, COUNT(*), ROUND(SUM(amount),2) FROM gl_transactions "
+        + (f"WHERE {' AND '.join(donde)} AND amount < 0 " if donde else "WHERE amount < 0 ")
+        + "GROUP BY currency ORDER BY currency", params).fetchall()
+    if creditos:
+        detalle = ", ".join(f"{n} row(s) {t:,.2f} {c}" for c, n, t in creditos)
+        notas.append(f"Negative amounts are present and are netted against the rest, which is "
+                     f"the usual convention and is invisible in a total: {detalle}. Gross "
+                     f"spend is higher by those amounts, per currency.")
 
     return {
         "result": {"rows": filas, "row_count": sum(f["rows"] for f in filas),

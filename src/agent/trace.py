@@ -32,6 +32,7 @@ same record, so they cannot drift apart.
 """
 
 import json
+import sqlite3
 import time
 from pathlib import Path
 
@@ -52,13 +53,22 @@ class Trace:
 
     @staticmethod
     def _procedencia(con):
-        """Which file is actually loaded. Written by the loader into _source."""
+        """Which file is actually loaded. Written by the loader into _source.
+
+        A failure here says so instead of disappearing. The first version caught
+        everything and returned None, which drops the provenance line out of the
+        trace with nothing in its place - and this field exists precisely because
+        an answer once quoted a file that was not loaded. A database not built by
+        src.load has no _source table, and silence would be the same bug wearing
+        the fix's clothes.
+        """
         try:
             ruta = con.execute("SELECT value FROM _source WHERE key='path'").fetchone()
             filas = con.execute("SELECT COUNT(*) FROM gl_transactions").fetchone()
             return {"path": ruta[0] if ruta else None, "ledger_rows": filas[0]}
-        except Exception:
-            return None
+        except sqlite3.Error as e:
+            return {"path": f"UNKNOWN - this database does not record where it came from ({e})",
+                    "ledger_rows": 0}
 
     def step(self, tool, args, output, seconds=None):
         """Record one tool call. `output` is a tool's {result, notes, sql} dict."""
