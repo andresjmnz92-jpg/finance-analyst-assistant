@@ -89,6 +89,33 @@ receipt marked three orders as paid: **if the model disobeys and it does damage,
 it disobeys and it only looks bad, it goes in the prompt.** Precise numbers, duplicates and anything
 that reaches an invoice are code. Tone is prompt.
 
+## Which model, and why it barely matters
+
+I used **Gemini 3.6 Flash on Google AI Studio's free tier**, which you name as expected and fine. I
+have no budget for this, and a hiring exercise is not where a bill should appear.
+
+**The provider is two environment variables, not an architecture.** Everything talks the
+OpenAI-compatible protocol, so Gemini, Groq, OpenAI, OpenRouter and a local Ollama are the same code
+path:
+
+```bash
+MODEL_BASE_URL=...    MODEL_NAME=...    MODEL_API_KEY=...
+```
+
+You will run it with your own credentials, and nothing needs changing for that. It also means the
+whole system works with no model at all: every tool is callable and testable without one, and a plan
+can be run by name. The model is the thinnest layer in here, deliberately.
+
+**Would a stronger model do better? Probably, in one specific place — and I would measure it rather
+than assume it.** The model's job here is to read an English question, pick a plan, and write the
+answer carrying the caveats. A more capable model might handle a vaguer question, or notice an
+ambiguity the plan does not list. It cannot improve a single number: the arithmetic never touches
+it. So the honest experiment is to run the same eight questions on two models and compare **which
+caveats each one dropped**, not which totals differ — the totals cannot differ.
+
+That is the same test I already applied to autonomy, and to a retrieval layer I did not build. Free
+was not a compromise here; it was the correct default until a measurement says otherwise.
+
 ## What I cut
 
 - **No web interface.** The brief allows either; a UI would eat hours you are not evaluating.
@@ -104,10 +131,21 @@ that reaches an invoice are code. Tone is prompt.
 
 ## Roughly how long
 
-About ten hours so far. Four on analysis before any code, which felt like not working and was the
-only part that could not be recovered later. Two on the tools. Two more on the review and its
-fallout. The rest on the fixture, twice — I rebuilt it once after finding six errors in my own
-arithmetic and again after noticing your account hierarchy is three levels deep where mine was two.
+**5.9 hours of active work**, and that figure is measured rather than estimated — I read the
+timestamps of the working session and discarded every gap over twenty minutes.
+
+| | window | active |
+| --- | --- | --- |
+| Thu 14 Aug, evening | 16:42–21:34 | **2.3 h** |
+| Fri 15 Aug | 09:27–15:46 | **3.5 h** |
+
+Roughly two of those hours went on analysis before a line of code existed — writing the eight
+expected answers, opening the CSVs, finding the traps. It felt like not working and it is the only
+part that could not have been recovered later.
+
+I had written "about ten hours" here first, from memory. Measuring it showed I was four hours over.
+Leaving that in a document you asked me to be honest in would have been a small lie in the one place
+it is easy to check.
 
 ## What I would do with two more days
 
