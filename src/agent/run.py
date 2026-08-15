@@ -45,6 +45,7 @@ from src.agent.trace import Trace
 from src.tools.accounts import resolve_accounts
 from src.tools.fx import convert_currency
 from src.tools.ledger import CAMPOS_FECHA, query_ledger
+from src.tools.vendors import normalize_vendors
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 
@@ -272,6 +273,113 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
     }
 
 
+def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accrual_date"):
+    """The largest vendors, ranked twice: grouped, and as the file stores them.
+
+    WHY TWO RANKINGS AND WHICH ONE IS THE ANSWER
+
+    Meridian lists Nordwind four times, one record per person who could not find
+    the existing one. Split, its best variant does not reach the top ten; grouped,
+    it is the fourth largest vendor in the company. The ranking is therefore not a
+    sum, it is a decision - and the brief asks for an interface that "must show
+    the work, not just the conclusion".
+
+    So the grouped ranking is THE answer, and the ungrouped one is printed beside
+    it so the reader can check the decision instead of trusting it. What is not
+    done is handing over two lists and letting the analyst choose: something has
+    to decide when the question is answered, and that something is this plan.
+
+    WHAT THE RANKING IS SILENT ABOUT UNLESS IT SAYS SO
+    Rows with no vendor - payroll - are not a vendor and cannot be ranked. In
+    Meridian they are 45.8% of all spend. A top ten that does not say so is
+    ordering half the money while sounding like it ordered all of it.
+    """
+    top = int(top)
+    prov = eje.usar(normalize_vendors, con=eje.con)
+    nombre = {v["vendor_id"]: v["vendor_name"] for v in prov["vendors"]}
+    cajon = {c["vendor_id"] for c in prov["catch_all_vendors"]}
+
+    if not (date_from or date_to):
+        eje.trace.decision(
+            "The question names no period, so the whole ledger was ranked. The date note on "
+            "the query below states the range that actually covers.")
+
+    mayor = eje.usar(query_ledger, con=eje.con, date_from=date_from, date_to=date_to,
+                     group_by=("vendor_id",), date_field=date_field)
+    fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
+
+    # convert_currency agrupa lo no convertido por mes y moneda, asi que el proveedor
+    # se pierde. Se recupera aqui mirando que filas de la ENTRADA caen en un hueco:
+    # "Euro Air ademas tiene 100 EUR sin convertir" es la mitad de su respuesta.
+    huecos = {(h["period_month"], h["currency"]) for h in fx["unconverted"]}
+    pendiente = {}
+    for f in mayor["rows"]:
+        if (f["period_month"], f["currency"]) in huecos:
+            d = pendiente.setdefault(f["vendor_id"], {})
+            d[f["currency"]] = round(d.get(f["currency"], 0.0) + f["amount"], 2)
+
+    por_id = {}
+    for f in fx["rows"]:
+        por_id[f["vendor_id"]] = round(por_id.get(f["vendor_id"], 0.0) + f["amount"], 2)
+    total_todo = round(sum(por_id.values()), 2)
+    sin_proveedor = por_id.pop("", 0.0)
+
+    grupo, cabeza = {}, {}
+    for g in prov["candidate_groups"]:
+        jefe = max(g["members"], key=lambda m: m["txns"])
+        cabeza[g["key"]] = jefe["vendor_name"]
+        for m in g["members"]:
+            grupo[m["vendor_id"]] = g["key"]
+
+    def ordenar(agrupar):
+        acumulado = {}
+        for vid, usd in por_id.items():
+            k = grupo.get(vid, vid) if agrupar else vid
+            e = acumulado.setdefault(k, {"key": k, "vendor_ids": [], "usd": 0.0})
+            e["vendor_ids"].append(vid)
+            e["usd"] = round(e["usd"] + usd, 2)
+        for e in acumulado.values():
+            e["vendor"] = cabeza.get(e["key"], nombre.get(e["key"], e["key"]))
+            e["catch_all"] = any(v in cajon for v in e["vendor_ids"])
+            resto = {}
+            for v in e["vendor_ids"]:
+                for mon, imp in pendiente.get(v, {}).items():
+                    resto[mon] = round(resto.get(mon, 0.0) + imp, 2)
+            if resto:
+                e["not_converted"] = resto
+        return sorted(acumulado.values(), key=lambda x: -x["usd"])
+
+    agrupado, suelto = ordenar(True), ordenar(False)
+    puesto = {e["key"]: i for i, e in enumerate(suelto, 1)}
+
+    cambios = []
+    for g in prov["candidate_groups"]:
+        ids = [m["vendor_id"] for m in g["members"]]
+        arriba = min((puesto[v] for v in ids if v in puesto), default=None)
+        ahora = next((i for i, e in enumerate(agrupado, 1) if e["key"] == g["key"]), None)
+        cambios.append({
+            "vendor": cabeza[g["key"]], "records": len(ids),
+            "rank_grouped": ahora, "best_rank_split": arriba,
+            "evidence": g["evidence"],
+        })
+
+    limpio = [dict(e) for e in agrupado[:top]]
+    for e in limpio:
+        e.pop("key", None)
+    return {
+        "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
+        "currency": fx["currency"],
+        "top": limpio,
+        "ungrouped_top": [{k: v for k, v in e.items() if k != "key"} for e in suelto[:top]],
+        "grouping_changed": cambios,
+        "vendors_ranked": len(agrupado),
+        "unattributed": {"usd": sin_proveedor,
+                         "share_of_spend": round(sin_proveedor / total_todo * 100, 1)
+                         if total_todo else None},
+        "excluded": fx["unconverted"],
+    }
+
+
 def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     """Total spend for a quarter in USD, and what could not be converted.
 
@@ -302,6 +410,7 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
 
 RUTINAS = {
     "opex_by_cost_centre": opex_by_cost_centre,
+    "largest_vendors": largest_vendors,
     "spend_comparison": spend_comparison,
     "consolidated_spend": consolidated_spend,
 }

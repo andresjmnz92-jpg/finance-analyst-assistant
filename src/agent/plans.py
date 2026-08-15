@@ -67,8 +67,13 @@ PLANS = {
     "largest_vendors": {
         "question": "Who are our ten largest vendors by spend?",
         "tools": ["normalize_vendors", "query_ledger", "convert_currency"],
-        "must_declare": ["the vendor grouping applied", "catch-all vendors", "the FX basis"],
-        "model_decides": [],           # la variante con modelo agrupa los nombres
+        # "the period" no estaba y la pregunta no lo dice: sin declararlo, un ranking
+        # de todo el mayor se lee como si fuera del ano en curso. Y "spend with no
+        # vendor" tampoco: en Meridian son el 46% del gasto - la nomina - asi que un
+        # top diez ordena la mitad del dinero sonando como si ordenara todo.
+        "must_declare": ["the vendor grouping applied", "catch-all vendors", "the FX basis",
+                         "the period covered", "spend with no vendor"],
+        "model_decides": ["whether to accept each proposed vendor grouping"],
     },
     "budget_variance": {
         "question": "Which cost centers came in worst against budget in Q3, and what "

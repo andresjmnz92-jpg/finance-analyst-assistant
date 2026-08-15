@@ -113,6 +113,18 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
     if not filas:
         notas.append("No rows matched. Check the period and the account list before "
                      "reporting this as a zero.")
+    # Netear creditos contra gastos es la convencion correcta y es invisible: el
+    # total sale mas bajo y nada dice por que. Se mide sobre las filas que este
+    # filtro devuelve, no sobre la tabla entera - un aviso sobre creditos que no
+    # entran en esta respuesta seria ruido.
+    creditos = con.execute(
+        f"SELECT COUNT(*), ROUND(SUM(amount),2) FROM gl_transactions "
+        + (f"WHERE {' AND '.join(donde)} AND amount < 0" if donde else "WHERE amount < 0"),
+        params).fetchone()
+    if creditos[0]:
+        notas.append(f"{creditos[0]} row(s) carry a negative amount totalling {creditos[1]:,.2f} "
+                     f"and are netted against the rest, which is the usual convention and is "
+                     f"invisible in a total. Gross spend is higher by that amount.")
 
     return {
         "result": {"rows": filas, "row_count": sum(f["rows"] for f in filas),

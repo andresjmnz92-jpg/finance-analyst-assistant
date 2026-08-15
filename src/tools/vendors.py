@@ -7,7 +7,13 @@ Nordwind Logistik B.V., Nordwind Logistics BV - each with its own vendor_id,
 because each was created separately by someone who could not find the existing
 one. Forty-three rows for thirty-nine real vendors. It changes the answer: split
 four ways Nordwind does not reach the top ten at all, its best variant sitting at
-number 15; grouped it is the fourth largest vendor in the company.
+number 15; grouped it is the LARGEST vendor in the company at 4,099,409.58.
+
+This line said "the fourth largest" until the ranking was actually run, and the
+wrong number was a fossil of the bug described below: with the broken grouping
+Nordwind totalled 3.09M, which sits behind Atlas 3.66M, Harbourgate 3.58M and
+Kestrel 3.46M - fourth. The docstring had recorded the figure the bug produced,
+survived the fix, and would have been read as the true answer.
 
 But vendors.csv has four columns and none of them is a tax identifier. Nothing in
 the data PROVES those four are one company. The evidence is strong - all four run
@@ -115,8 +121,13 @@ def normalize_vendors(con):
                      f"any largest-vendor ranking; include or exclude them explicitly.")
 
     return {
+        # `vendors` sale entero porque el mayor solo guarda vendor_id: sin esta lista
+        # cualquier ranking se imprime con codigos en vez de nombres, y nadie puede
+        # comprobar una agrupacion que no puede leer.
         "result": {"candidate_groups": grupos, "catch_all_vendors": cajones,
-                   "vendor_count": len(proveedores)},
+                   "vendor_count": len(proveedores),
+                   "vendors": [{k: p[k] for k in ("vendor_id", "vendor_name", "txns")}
+                               for p in proveedores]},
         "notes": notas,
         "sql": [(sql, ())],
     }
