@@ -1,6 +1,13 @@
-"""Load Meridian's five CSVs into a local SQLite file.
+"""Load a set of five CSVs into a local SQLite file.
 
-    python -m src.load
+    python -m src.load                          # Meridian, into meridian.db
+    python -m src.load evals/fixtures tessera.db  # the fixture, into its own db
+
+TWO DATASETS, ONE LOADER. The brief says the tools will be run against a second
+dataset with the same columns. Rather than take that on faith, the eval suite runs
+the same eight questions over a small hand-built fixture whose answers are known
+in advance (evals/fixtures/EXPECTED.md). If the loader needed a special case for
+either one, that would already be the bug.
 
 Rebuilt from data/ every time, so meridian.db is gitignored. Nothing here is
 clever on purpose: five tables, one index set, and a row count you can check.
@@ -23,8 +30,6 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-DATOS = RAIZ / "data"
-DB = RAIZ / "meridian.db"
 
 # (csv, tabla, columnas con su tipo). El orden es el del archivo.
 TABLAS = [
@@ -63,14 +68,21 @@ INDICES = [
 ]
 
 
-def cargar():
+def cargar(datos=None, db=None):
+    datos = Path(datos) if datos else RAIZ / "data"
+    DB = Path(db) if db else RAIZ / "meridian.db"
+    if not datos.is_absolute():
+        datos = RAIZ / datos
+    if not DB.is_absolute():
+        DB = RAIZ / DB
+
     if DB.exists():
         DB.unlink()
     con = sqlite3.connect(DB)
     resumen = []
 
     for archivo, tabla, columnas in TABLAS:
-        ruta = DATOS / archivo
+        ruta = datos / archivo
         if not ruta.exists():
             sys.exit(f"Missing data file: {ruta}")
 
@@ -130,4 +142,4 @@ def cargar():
 
 
 if __name__ == "__main__":
-    cargar()
+    cargar(*sys.argv[1:3])
