@@ -131,21 +131,22 @@ was not a compromise here; it was the correct default until a measurement says o
 
 ## Roughly how long
 
-**5.9 hours of active work**, and that figure is measured rather than estimated — I read the
+**6.1 hours of active work**, and that figure is measured rather than estimated — I read the
 timestamps of the working session and discarded every gap over twenty minutes.
 
 | | window | active |
 | --- | --- | --- |
-| Thu 14 Aug, evening | 16:42–21:34 | **2.3 h** |
-| Fri 15 Aug | 09:27–15:46 | **3.5 h** |
+| Fri 14 Aug, evening | 16:42–21:34 | **2.3 h** |
+| Sat 15 Aug | 09:27–16:03 | **3.8 h** |
 
 Roughly two of those hours went on analysis before a line of code existed — writing the eight
 expected answers, opening the CSVs, finding the traps. It felt like not working and it is the only
 part that could not have been recovered later.
 
-I had written "about ten hours" here first, from memory. Measuring it showed I was four hours over.
-Leaving that in a document you asked me to be honest in would have been a small lie in the one place
-it is easy to check.
+I had written "about ten hours" here first, from memory. Measuring it showed I was nearly four
+hours over, and the same measurement caught two weekday names I had also written from memory and
+also got wrong. Leaving either in a document you asked me to be honest in would have been a small
+lie in the one place it is easy to check.
 
 ## What I would do with two more days
 
