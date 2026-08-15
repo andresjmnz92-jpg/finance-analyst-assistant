@@ -19,8 +19,31 @@ So the design is a deterministic router: the model reads the question and picks 
 plan decides the calls. *"Something decides which tools to call"* is satisfied — the something is a
 router, and picking it over a free-running loop is the least autonomy that answers the question.
 
-**I am not asserting this from principle. I am measuring it.** For the three questions where a model
-might plausibly do better than fixed control flow, both versions get built and run:
+This is the workflow-versus-agent distinction: a workflow orchestrates the model with code you
+control, an agent lets the model decide. The recommendation in
+[Building Effective AI Agents](https://www.anthropic.com/research/building-effective-agents) is to
+reach for an agent only when the task is too ambiguous to route with code. Eight known question
+shapes are not that.
+
+### The rule I apply for what lives in code and what lives in the prompt
+
+> **If the model disobeys and it does damage — code.**
+> **If it disobeys and it only looks bad — prompt.**
+
+I did not arrive at that here. It came out of a production WhatsApp sales bot I run, after one photo
+of a payment receipt marked three orders as paid. That was not fixed by adding *"do not mark three"*
+to the prompt; it was fixed with a 24-hour filter and an idempotency guard, and it never recurred.
+
+It maps directly onto this exercise. Every plan carries a `must_declare` list — the year assumed,
+the FX basis, the rows that could not be converted, that duplicates are candidates. Those are not
+prompt instructions asking nicely. **The eval runner asserts they appear in the answer**, because a
+total presented without its missing 147 rows is a confident wrong answer, and that is damage.
+
+Prompt keeps what only looks bad if ignored: tone, ordering, how the caveat is phrased.
+
+**I am not asserting the routing decision from principle either. I am measuring it.** For the three
+questions where a model might plausibly do better than fixed control flow, both versions get built
+and run:
 
 | Question | Why it might need the model | Measured |
 | --- | --- | --- |
