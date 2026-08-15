@@ -1,0 +1,23 @@
+# Credentials — never committed. Whoever runs this supplies their own.
+.env
+.env.*
+*.key
+credentials.json
+
+# Local database, rebuilt from data/ by `python -m src.load`
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
