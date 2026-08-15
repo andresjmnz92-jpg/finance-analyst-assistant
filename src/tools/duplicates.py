@@ -95,15 +95,16 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
     extras = sum(c["extra_rows"] for c in candidatos)
     periodicos = sum(1 for c in candidatos if c["looks_periodic"])
     notas = [
-        "Grouped on entity + cost centre + account + vendor + amount, IGNORING dates. "
-        "A date window is what fails here: in Meridian a 7-day window finds 4 of the 7 "
-        "planted duplicates, because 3 sit exactly 30 days apart imitating a billing cycle.",
-        "doc_ref is deliberately NOT used. In this file all seven planted duplicates carry a "
-        "sequence above 600000 and nothing else does - a perfect signature, and an artefact "
-        "of how the file was generated. It would score perfectly here and find nothing in "
-        "another dataset.",
+        "Grouped on entity + cost centre + account + currency + amount + vendor, IGNORING "
+        "dates. A date window is the obvious approach and it misses duplicates spaced a "
+        "full billing cycle apart, so the gap is reported as evidence instead of used as "
+        "a filter.",
+        "doc_ref is deliberately NOT used as a criterion, even where document numbering "
+        "would separate genuine duplicates cleanly. Numbering patterns are properties of "
+        "how a file was produced, not of the business, and would not carry to another "
+        "dataset.",
         "These are CANDIDATES. A monthly rent, a recurring licence and a genuine double "
-        "payment are indistinguishable in this data, and credit notes reverse real invoices "
+        "payment can be indistinguishable, and a credit note reverses a real invoice "
         "exactly. Deciding is the analyst's job, not this tool's.",
     ]
     if periodicos:

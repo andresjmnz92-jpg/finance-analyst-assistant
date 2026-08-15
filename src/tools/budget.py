@@ -26,10 +26,9 @@ local currency, and it covers 2024 only.
 """
 
 DETECTION = (
-    "Duplicate keys are found by grouping on cost_centre + account_code + "
-    "period_month, never by row count. A count only works on this file; the shape "
-    "of a cost centre is accounts x months, and every centre in Meridian matches "
-    "its own shape except one."
+    "Duplicate keys are found by grouping on entity + cost_centre + account_code + "
+    "period_month, never by row count. A row count is a property of one file; a "
+    "repeated key is a property of the data."
 )
 
 

@@ -98,12 +98,13 @@ def normalize_vendors(con):
         if GENERICO.search(p["vendor_name"].upper()):
             cajones.append({k: p[k] for k in ("vendor_id", "vendor_name", "txns")})
 
-    notas = ["Groups are PROPOSED, never applied. vendors.csv has no tax identifier, "
+    notas = ["Groups are PROPOSED, never applied. vendors.csv carries no tax identifier, "
              "so nothing here proves two rows are one company - the evidence field says "
              "what supports each proposal and the caller decides.",
-             "Name matching is fragile by nature. An earlier rule of this kind grouped "
-             "three of Nordwind's four variants and gave no error; it was caught only "
-             "because the group total did not match the sum of the parts."]
+             "Name matching is fragile by nature and fails in both directions: it can "
+             "miss a variant it does not recognise, and it can merge two unrelated "
+             "companies whose names reduce to the same key. Neither failure raises "
+             "anything, which is why nothing is merged automatically."]
     if grupos:
         n = sum(len(g["members"]) for g in grupos)
         notas.append(f"{len(grupos)} candidate group(s) covering {n} vendor records. Ranking "

@@ -3,11 +3,16 @@
 TWO DECISIONS THAT ARE NOT DETAILS
 
 Which date. Every row carries posting_date AND accrual_date, and no document in
-the pack says which one defines a period. They disagree: posting_date runs to
-2025-01-14 while accrual_date stops at 2024-12-31, and all 60 rows posted in 2025
-accrue in 2024 - they are the year-end close. A 2024 report by posting date loses
-those 60. The default here is accrual_date, because accrual is what FP&A reports
-on, and the choice is returned in the answer so it can be challenged.
+the pack says which one defines a period. The default is accrual_date, because
+accrual is what FP&A reports on, and the choice is returned with the answer so it
+can be challenged.
+
+In Meridian specifically the two disagree - posting runs to 2025-01-14 while
+accrual stops at 2024-12-31, and the 60 rows posted in 2025 accrue in 2024, being
+the year-end close. That measurement belongs HERE, in a docstring, and not in the
+note the tool returns: the note is built from whatever file is loaded, because
+against another dataset an asserted range is simply a false statement carried
+inside the answer.
 
 No conversion. This tool returns amounts in the currency they were booked in,
 grouped by currency, and never sums across currencies. Converting is
@@ -22,11 +27,28 @@ CAMPOS_FECHA = ("accrual_date", "posting_date")
 # de columna mal escrito en un error inmediato en vez de en una consulta vacia.
 DIMENSIONES = ("entity", "cost_centre", "account_code", "vendor_id", "currency")
 
-DATE_BASIS = (
-    "Period assigned by {campo}. The pack does not say which date defines a period, "
-    "and the two disagree: posting_date extends into 2025-01 while accrual_date "
-    "stops at 2024-12-31."
-)
+def _base_de_fecha(con, campo):
+    """The date note, MEASURED from the loaded file rather than asserted.
+
+    The first version of this stated Meridian's own ranges as a fact on every call.
+    Run against any other dataset it reported a characteristic the data did not
+    have - a plausible false statement travelling inside every answer, which is the
+    single thing this exercise punishes. If a note cannot be measured, it is not said.
+    """
+    otro = "posting_date" if campo == "accrual_date" else "accrual_date"
+    fila = con.execute("SELECT MIN(posting_date), MAX(posting_date), "
+                       "MIN(accrual_date), MAX(accrual_date) FROM gl_transactions").fetchone()
+    rangos = {"posting_date": (fila[0], fila[1]), "accrual_date": (fila[2], fila[3])}
+    nota = (f"Period assigned by {campo}. Nothing in the pack says which date defines a "
+            f"period. In THIS file {campo} spans {rangos[campo][0]}..{rangos[campo][1]} "
+            f"and {otro} spans {rangos[otro][0]}..{rangos[otro][1]}")
+    if rangos[campo] == rangos[otro]:
+        return nota + " - identical here, so the choice does not change this answer."
+    fuera = con.execute(
+        f"SELECT COUNT(*) FROM gl_transactions WHERE substr({campo},1,4) <> substr({otro},1,4)"
+    ).fetchone()[0]
+    return (nota + f". They differ, and {fuera} row(s) fall in a different year depending on "
+                   f"which is used.")
 
 
 def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
@@ -75,7 +97,7 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
     cols = grupos + ["period_month", "amount", "rows"]
     filas = [dict(zip(cols, r)) for r in con.execute(sql, params)]
 
-    notas = [DATE_BASIS.format(campo=date_field)]
+    notas = [_base_de_fecha(con, date_field)]
     monedas = {f["currency"] for f in filas}
     if len(monedas) > 1:
         notas.append(f"Rows span {len(monedas)} currencies ({', '.join(sorted(monedas))}) "
