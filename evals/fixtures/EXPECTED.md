@@ -52,6 +52,21 @@ nothing is hardcoded to Meridian.
 | 6 | Rows with no vendor | `T006`, `T013` — payroll, which is correct, not missing data |
 | 7 | Repeated amounts that are **not** duplicates | same vendor, same account, same amount, different months |
 | 8 | Three-level hierarchy with one root | `6000` is the only account with no parent, same shape as Meridian |
+| 9 | A vendor variant the matcher **cannot** catch | `V007 AERO FRT.` — deliberately unfixable by name rules |
+
+### On V006 and V007
+
+Both are vendor records with **no transactions**, so they change no total in this file and every
+figure below stands. They exist to exercise `normalize_vendors` alone:
+
+- **`V006 Aero Freight B.V.`** must group with V001 and V002. The punctuated suffix is the exact
+  shape that broke the first two attempts at this — `B.V.` becoming `B V` and no longer matching the
+  suffix rule. Expected: **one candidate group of three.**
+- **`V007 AERO FRT.`** must **not** group. `FRT` is an abbreviation no name rule can resolve without
+  a dictionary, and teaching the matcher this one case would only hide the limitation.
+
+**A fixture where everything passes is not measuring anything.** This one carries a case the tool
+gets wrong on purpose, and the expected behaviour is that it says so rather than guessing.
 
 ---
 
