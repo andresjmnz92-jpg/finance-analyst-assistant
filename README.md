@@ -12,9 +12,11 @@ the ledger, reads the policy, checks the budget and shows exactly what it did.
 | ✅ Data loading | Five CSVs into SQLite, no cleaning, no dependencies |
 | ✅ A second dataset with known answers | `evals/fixtures/` — 18 rows whose every figure was worked out by hand first |
 | ✅ [`ARCHITECTURE.md`](ARCHITECTURE.md) | The tool design and where the model is and is not in the loop |
-| ⬜ The seven tools | |
-| ⬜ Router, CLI and trace | |
-| ⬜ The eval runner | |
+| ✅ The seven tools | Built and checked against both datasets; see [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| ✅ [`NOTES.md`](NOTES.md) | What went wrong, how it was noticed, what was cut |
+| ✅ One check that runs | `python -m evals.no_borrowed_facts` |
+| ⬜ Router, CLI and trace | The orchestration layer is written but not yet wired |
+| ⬜ The eval runner over all eight questions | |
 
 ## Install and run
 
