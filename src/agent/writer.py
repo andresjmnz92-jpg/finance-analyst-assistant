@@ -49,7 +49,6 @@ import re
 
 from src.agent.model import ask
 from src.agent.plans import PLANS
-from src.agent.trace import _resumir
 
 # Cualquier cosa con una cifra dentro. Se normaliza quitando separadores de miles
 # y ceros de cola para que 1,231,309.12 y 1231309.120 sean el mismo numero.
@@ -154,6 +153,42 @@ def _bloque(titulo, lineas):
     return f"{titulo}\n" + "\n".join(f"  {l}" for l in lineas) if lineas else ""
 
 
+def _figuras(datos, tope=12):
+    """The figures, printed by code, WITHOUT collapsing the lists.
+
+    The trace's summary shortens any list over six entries to "10 item(s)",
+    which is right for a trace: it exists to be legible, and the SQL beside it
+    lets anyone reproduce the rows. It is wrong here. Against largest_vendors the
+    answer's FIGURES block read "top: 10 item(s)", so the ranking itself - the
+    entire content of that answer - existed only inside the model's paragraph.
+
+    The whole design says the figures are printed by code and the model only
+    writes prose. That guarantee did not hold in the one answer made of nothing
+    but figures.
+    """
+    def escalar(v):
+        return f"{v:,.2f}" if isinstance(v, float) else str(v)
+
+    lineas = []
+    for k, v in (datos or {}).items():
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            lineas.append(f"{k}:")
+            for i, fila in enumerate(v[:tope], 1):
+                campos = ", ".join(f"{a}={escalar(b)}" for a, b in fila.items()
+                                   if not isinstance(b, (list, dict)))
+                lineas.append(f"  {i}. {campos}")
+            if len(v) > tope:
+                lineas.append(f"  ... and {len(v) - tope} more")
+        elif isinstance(v, dict) and v:
+            lineas.append(f"{k}: " + ", ".join(f"{a}={escalar(b)}" for a, b in v.items()
+                                               if not isinstance(b, (list, dict))))
+        elif isinstance(v, list):
+            lineas.append(f"{k}: {json.dumps(v, ensure_ascii=False, default=str)[:200]}")
+        else:
+            lineas.append(f"{k}: {escalar(v)}")
+    return lineas
+
+
 def _armar(parrafo, datos, aviso=None):
     """The answer as the reader gets it. Only the paragraph came from the model.
 
@@ -171,7 +206,7 @@ def _armar(parrafo, datos, aviso=None):
         partes.append(f"[{aviso}]")
     if parrafo:
         partes.append(parrafo)
-    partes.append(_bloque("FIGURES", _resumir(datos["findings"] or {})))
+    partes.append(_bloque("FIGURES", _figuras(datos["findings"])))
     partes.append(_bloque("WHAT THIS ANSWER DEPENDS ON",
                           list(dict.fromkeys(datos["all_notes"]))))
     return "\n\n".join(p for p in partes if p)

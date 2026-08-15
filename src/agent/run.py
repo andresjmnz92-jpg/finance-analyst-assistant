@@ -406,6 +406,24 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
             "evidence": g["evidence"],
         })
 
+    # DOS FRASES QUE EL CODIGO TIENE QUE ESCRIBIR, Y NO ESCRIBIA.
+    # La primera version dejaba las dos cosas como claves crudas en los hallazgos, y
+    # una revision independiente encontro lo previsible: el redactor no las leyo y la
+    # respuesta ordeno la mitad del dinero sonando como si ordenara todo. El
+    # docstring de arriba ya decia por que eso era grave, un mes antes de que pasara.
+    if total_todo:
+        eje.trace.decision(
+            f"{sin_proveedor / total_todo * 100:.0f}% of the spend in this period "
+            f"({sin_proveedor:,.2f} USD) carries NO vendor at all - payroll and similar - and "
+            f"cannot be ranked. This ranking orders the rest, not the total.")
+    if cambios:
+        eje.trace.decision(
+            "The proposed vendor groupings WERE applied to this ranking. "
+            + "; ".join(f"{c['vendor']} is {c['records']} records ranking #{c['rank_grouped']} "
+                        f"together and #{c['best_rank_split']} at best apart" for c in cambios)
+            + ". The tool proposes and does not merge; the decision to accept was taken here "
+              "and the ungrouped ranking is reported beside it.")
+
     limpio = [dict(e) for e in agrupado[:top]]
     for e in limpio:
         e.pop("key", None)
@@ -548,6 +566,27 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
         etiqueta = ("(no vendor)" if not vid else
                     cabeza.get(grupo.get(vid), nombre.get(vid, vid)))
         por_prov[etiqueta] = round(por_prov.get(etiqueta, 0.0) + f["amount"], 2)
+
+    # Las dos listas se NOMBRAN, porque son dos respuestas distintas a la misma
+    # pregunta y entregarlas como dos arreglos parecidos invita a confundirlas. Una
+    # revision independiente lo comprobo: el redactor presento la 6110 como de las
+    # peores "por valor y por porcentaje" cuando no esta en la lista de porcentaje,
+    # y se salto la 6630, que si. No leyo mal - se le dieron dos listas iguales sin
+    # una frase que las separase.
+    def _nombrar(lista, metrica):
+        return "; ".join(
+            f"{c['cost_centre']}/{c['account_code']} "
+            + ("(" + " to ".join(f"{d['usd']:+,.0f}" for d in c["deviation"].values()) + " USD)"
+               if metrica == "usd" else
+               "(" + " to ".join(f"{d['percent']:+.0f}%" for d in c["deviation"].values()
+                                 if d["percent"] is not None) + ")")
+            for c in lista[:3])
+
+    eje.trace.decision(
+        f"Worst by VALUE, in order: {_nombrar(por_valor, 'usd')}. "
+        f"Worst by PERCENT, in order: {_nombrar(por_pct, 'percent')}. "
+        f"They are different questions and the lists differ; a range is given per entry "
+        f"because the budget exists twice and nothing says which set is current.")
 
     volteados = [c for c in comparacion if c.get("sign_flips")]
     if volteados:
