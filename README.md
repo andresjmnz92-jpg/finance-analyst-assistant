@@ -137,7 +137,7 @@ own, and nobody should discover that by accident.
 | | |
 | --- | --- |
 | ✅ The eight plans | Every figure checked against `EXPECTED.md`, on both datasets |
-| ✅ The router | 8 of 8 questions to the right plan, with the right account code each time |
+| ✅ The router | 8 of 8 questions to the right plan, with the right account code each time — measured by hand, two live sweeps during development; not automated here, because routing needs a model and the eval suites run without one |
 | ✅ The writer, the trace and the CLI | One model call to route, one to write; figures and caveats printed by code |
 | ✅ Three eval commands | `eight`, `no_borrowed_facts` and `guards` |
 | ✅ A runner over the eight questions | `python -m evals.eight`: 16 runs, statuses judged by coherence with their own evidence, all 26 `must_declare` entries backed by a named emitter |
