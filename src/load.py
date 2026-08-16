@@ -42,7 +42,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-# (csv, tabla, columnas con su tipo). El orden es el del archivo.
+# (csv, table, columns with their type). The order is the file's own.
 TABLAS = [
     ("gl_transactions.csv", "gl_transactions", [
         ("txn_id", "TEXT PRIMARY KEY"), ("posting_date", "TEXT"), ("accrual_date", "TEXT"),
@@ -86,16 +86,15 @@ def cargar(datos=None, force=False):
     datos = datos.resolve()
     DB = RAIZ / f"{datos.name}.db"
 
-    # La ruta de origen se graba dentro de la base. Derivar el nombre del basename
-    # no basta: CUALQUIER carpeta llamada 'data' apuntaba al mismo archivo, asi que
-    # cargar /otro/sitio/data borraba los 10.916 registros reales e imprimia exito.
-    # El docstring afirmaba que eso era imposible; no lo era.
+    # The source path is written inside the database. Deriving the name from the
+    # basename is not enough: ANY folder called 'data' pointed at the same file, so
+    # loading /somewhere/else/data wiped the 10,916 real rows and printed a success
+    # summary. The docstring claimed that was impossible; it was not.
     if DB.exists() and not force:
         anterior = None
         try:
-            # Cerrar SIEMPRE antes del unlink: en Windows un archivo abierto no se
-            # puede borrar, y la comprobacion acababa impidiendo la carga que si
-            # estaba permitida.
+            # ALWAYS close before the unlink: on Windows an open file cannot be
+            # deleted, and the check ended up blocking the load it was meant to allow.
             with contextlib.closing(sqlite3.connect(DB)) as previo:
                 anterior = previo.execute(
                     "SELECT value FROM _source WHERE key = 'path'").fetchone()
@@ -121,8 +120,8 @@ def cargar(datos=None, force=False):
         cols_sql = ", ".join(f"{n} {t}" for n, t in columnas)
         con.execute(f"CREATE TABLE {tabla} ({cols_sql})")
 
-        # utf-8-sig: si el archivo llega con BOM, la primera cabecera saldria como
-        # '﻿vendor_id' y el DictReader no encontraria la columna.
+        # utf-8-sig: if the file arrives with a BOM, the first header comes out as
+        # '﻿vendor_id' and DictReader never finds the column.
         with ruta.open(encoding="utf-8-sig", newline="") as f:
             lector = csv.DictReader(f)
             nombres = [n for n, _ in columnas]
@@ -131,9 +130,10 @@ def cargar(datos=None, force=False):
             if faltan:
                 sys.exit(f"{archivo}: expected columns not found: {sorted(faltan)}")
 
-            # Columnas que no esperabamos. NO se cargan, pero callarselas seria peor:
-            # si un dataset futuro trae budget_version, esa columna resuelve por si
-            # sola la ambiguedad del presupuesto duplicado, y nadie se enteraria.
+            # Columns we did not expect. They are NOT loaded, and staying quiet about
+            # them would be worse: if a future dataset carries budget_version, that one
+            # column resolves the duplicate-budget ambiguity by itself, and nobody
+            # would find out.
             extra = sorted(presentes - set(nombres))
             if extra:
                 avisos.append(f"{archivo}: unrecognised columns present and NOT loaded: {extra}")

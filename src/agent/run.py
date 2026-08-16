@@ -53,8 +53,8 @@ from src.tools.vendors import normalize_vendors
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 
-# El ultimo dia de cada trimestre. Ninguno cae en febrero, asi que no hace falta
-# calendario: 31/30/30/31 es toda la tabla.
+# The last day of each quarter. None falls in February, so no calendar is needed:
+# 31/30/30/31 is the whole table.
 FIN_TRIMESTRE = {1: "03-31", 2: "06-30", 3: "09-30", 4: "12-31"}
 
 
@@ -219,7 +219,7 @@ def _sumar_periodo(eje, root, desde, hasta, date_field, group_by=()):
     return filas, resoluciones
 
 
-# -- los planes ------------------------------------------------------------------
+# -- the plans -------------------------------------------------------------------
 
 def opex_by_cost_centre(eje, root, year=None, quarter=2, date_field="accrual_date"):
     """Spend under a rollup for a quarter, split by cost centre.
@@ -287,9 +287,10 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
         eje.trace.decision(f"This file holds {len(anios)} year(s) of ledger data "
                            f"({', '.join(anios) or 'none'}); a comparison needs two.")
         return {"status": "REFUSED", "reason": "fewer than two years in the ledger"}
-    # Se ORDENAN, no se confia en el orden. El router devolvio year_a=2024 y
-    # year_b=2023, que invierte el signo de la diferencia - y no se equivoco: "a" y
-    # "b" no significan nada. Ordenar quita la pregunta en vez de contestarla.
+    # SORTED, rather than trusting the order they arrive in. The router returned
+    # year_a=2024 and year_b=2023, which flips the sign of the difference - and it was
+    # not wrong: "a" and "b" mean nothing. Sorting removes the question instead of
+    # answering it.
     year_b = year_b or anios[-1]
     year_a = year_a or anios[-2]
     year_a, year_b = sorted((str(year_a), str(year_b)))
@@ -370,9 +371,9 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
                      group_by=("vendor_id",), date_field=date_field)
     fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
 
-    # convert_currency agrupa lo no convertido por mes y moneda, asi que el proveedor
-    # se pierde. Se recupera aqui mirando que filas de la ENTRADA caen en un hueco:
-    # "Euro Air ademas tiene 100 EUR sin convertir" es la mitad de su respuesta.
+    # convert_currency groups what it could not convert by month and currency, so the
+    # vendor is lost. It is recovered here by checking which INPUT rows fall in a gap:
+    # "Euro Air also has 100 EUR unconverted" is half of that vendor's answer.
     huecos = {(h["period_month"], h["currency"]) for h in fx["unconverted"]}
     pendiente = {}
     for f in mayor["rows"]:
@@ -420,11 +421,11 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
             "evidence": g["evidence"],
         })
 
-    # DOS FRASES QUE EL CODIGO TIENE QUE ESCRIBIR, Y NO ESCRIBIA.
-    # La primera version dejaba las dos cosas como claves crudas en los hallazgos, y
-    # una revision independiente encontro lo previsible: el redactor no las leyo y la
-    # respuesta ordeno la mitad del dinero sonando como si ordenara todo. El
-    # docstring de arriba ya decia por que eso era grave, un mes antes de que pasara.
+    # TWO SENTENCES THE CODE HAS TO WRITE, AND WAS NOT WRITING.
+    # The first version left both as raw keys in the findings, and an independent review
+    # found the predictable result: the writer did not read them, and the answer ordered
+    # half the money while sounding like it ordered all of it. The docstring above
+    # already said why that was serious, before it happened.
     if total_todo:
         eje.trace.decision(
             f"{sin_proveedor / total_todo * 100:.0f}% of the spend in this period "
@@ -515,13 +516,13 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
     for k in sorted(set(plan) | set(real)):
         gastado = real.get(k, 0.0)
         faltante = pendiente.get(k, {})
-        # Cota INFERIOR de lo que falta: la tasa mas baja del archivo para esa
-        # moneda. Si con la mas baja la desviacion ya cambia de signo, cambia con
-        # cualquiera - y eso se puede afirmar sin inventarse la tasa que no existe.
+        # A LOWER bound on what is missing: the lowest rate on file for that currency.
+        # If the deviation already changes sign at the lowest rate, it changes at any
+        # rate - and that can be stated without inventing the rate that does not exist.
         #
-        # Una moneda que NO aparece ni una vez en fx_rates no tiene cota. Antes se
-        # le ponia 0.0 por defecto, que se lee como "no falta nada" y podia tapar
-        # un cambio de signo real. Sin tasas no hay cota, y eso se dice.
+        # A currency that appears NOWHERE in fx_rates has no bound. It used to default
+        # to 0.0, which reads as "nothing is missing" and could hide a real sign flip.
+        # No rates, no bound, and that is said.
         sin_cota = sorted(m for m in faltante if m not in minimo)
         suelo = round(sum(imp * minimo[mon] for mon, imp in faltante.items()
                           if mon in minimo), 2)
@@ -534,8 +535,8 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                 "percent": round(d / presupuestado * 100, 1) if presupuestado else None}
             if faltante and d < 0 <= round(d + suelo, 2):
                 fila["sign_flips"] = True
-        # Presupuesto cero con gasto real: el porcentaje no es 0, es indefinido, y
-        # ordenarlo como 0 saca del ranking justo al centro que gasta sin plan.
+        # A zero budget with real spend: the percentage is not 0, it is undefined, and
+        # ranking it as 0 drops the centre spending with no plan out of the list.
         if any(p == 0 for p in plan.get(k, {}).values()) and gastado > 0:
             fila["percent_undefined_zero_budget"] = True
         if faltante:
@@ -569,9 +570,9 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                         accounts=[p["account_code"]], group_by=("vendor_id",),
                         date_field=date_field)
     motor = eje.usar(convert_currency, con=eje.con, rows=desglose["rows"])
-    # El desglose se pidio para NOMBRAR al responsable, asi que sale con nombres y
-    # con las fichas de una misma empresa sumadas. Sin esto Meridian imprime V1088
-    # y V1042 como dos proveedores, y son dos fichas de Nordwind.
+    # The breakdown was asked for in order to NAME who drove it, so it comes out with
+    # names and with one company's records added together. Without this, Meridian prints
+    # V1088 and V1042 as two vendors, and they are two records of Nordwind.
     prov = eje.usar(normalize_vendors, con=eje.con)
     nombre, grupo, cabeza = _identidad(prov)
     por_prov = {}
@@ -581,12 +582,12 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                     cabeza.get(grupo.get(vid), nombre.get(vid, vid)))
         por_prov[etiqueta] = round(por_prov.get(etiqueta, 0.0) + f["amount"], 2)
 
-    # Las dos listas se NOMBRAN, porque son dos respuestas distintas a la misma
-    # pregunta y entregarlas como dos arreglos parecidos invita a confundirlas. Una
-    # revision independiente lo comprobo: el redactor presento la 6110 como de las
-    # peores "por valor y por porcentaje" cuando no esta en la lista de porcentaje,
-    # y se salto la 6630, que si. No leyo mal - se le dieron dos listas iguales sin
-    # una frase que las separase.
+    # Both lists are NAMED, because they are two different answers to the same question
+    # and handing them over as two similar-looking arrays invites confusing them. An
+    # independent review proved it: the writer presented 6110 as one of the worst "by
+    # value and percent" when it is not in the percent list at all, and skipped 6630,
+    # which is. It did not misread - it was given two identical-looking lists with
+    # nothing in prose to separate them.
     def _nombrar(lista, metrica):
         return "; ".join(
             f"{c['cost_centre']}/{c['account_code']} "
@@ -629,9 +630,9 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
     }
 
 
-# Dos listas y no una. Un campo llamado employee_id SERIA un denominador, asi que
-# vale para escanear columnas; una frase sobre "employee meals" no lo es, y con la
-# lista ancha la cita del memo salia enterrada entre tres parrafos de dietas.
+# Two lists and not one. A field called employee_id WOULD be a denominator, so it
+# belongs in the column scan; a sentence about "employee meals" is not, and with the
+# wide list the memo's quote arrived buried under three paragraphs about per-diems.
 DENOMINADOR_COLUMNA = ("fte", "full-time", "full time", "headcount", "head count", "employee")
 DENOMINADOR_FRASE = ("fte", "full-time equivalent", "full time equivalent", "headcount",
                      "head count")
@@ -677,9 +678,9 @@ def cost_per_fte(eje, root, date_field="accrual_date"):
     for f in filas:
         coste[f["currency"]] = round(coste.get(f["currency"], 0.0) + f["amount"], 2)
 
-    # Los documentos se leen enteros y se buscan con los espacios normalizados. Una
-    # busqueda por lineas ya fallo con esta pregunta: la frase que la decide cruza un
-    # salto de linea y el grep devolvia nada.
+    # Documents are read whole and searched with whitespace normalised. A line-based
+    # search already failed on this question: the sentence that decides it spans a line
+    # break, and grep returned nothing.
     catalogo = eje.usar(read_document, datos_dir=eje.datos_dir)
     dicho = []
     for nombre in catalogo["documents"]:
@@ -797,11 +798,11 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
     """
     threshold = float(threshold)
 
-    # LA REGLA CITA SU FUENTE O SE DECLARA SIN FUENTE.
-    # El umbral llega como parametro - lo pone el modelo tras leer la politica, o
-    # quien llame a mano. Si no aparece en ningun documento del paquete, la regla es
-    # una afirmacion de quien pregunto, no de la politica, y eso cambia lo que vale
-    # la respuesta. "No claim without a source" es del enunciado.
+    # THE RULE CITES ITS SOURCE, OR IS DECLARED AS HAVING NONE.
+    # The threshold arrives as a parameter - set by the model after reading the policy,
+    # or by hand. If it appears in no document in the pack, the rule is an assertion by
+    # whoever asked rather than the policy's, and that changes what the answer is worth.
+    # "No claim without a source" is the brief's own line.
     catalogo = eje.usar(read_document, datos_dir=eje.datos_dir)
     fuente = []
     entero = f"{int(threshold):,}"
@@ -822,13 +823,12 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
                 "reason": "the policy scope resolved to no posting accounts; see the note"}
     en_alcance = sorted({c for _, _, hojas in resoluciones for c in hojas})
 
-    # UNA CONDICION POR VENTANA, y la primera version no lo hacia. Juntaba las hojas
-    # de todas las ventanas y consultaba el periodo entero, asi que una cuenta que
-    # solo estuvo en alcance hasta junio seguia contando en agosto. El fixture lo
-    # caza a proposito: con la union salen 6 candidatos donde su contrato dice 5, y
-    # el sobrante es la comida del 2024-07-10 en una cuenta que ya era de marketing.
-    # La frase que este plan emite afirmaba "resuelto ventana por ventana" mientras
-    # el codigo hacia otra cosa.
+    # ONE CONDITION PER WINDOW, and the first version did not do that. It collected the
+    # leaves of every window and queried the whole period, so an account in scope only
+    # until June still counted in August. The fixture catches it on purpose: with the
+    # union it returns 6 candidates where its contract says 5, and the extra one is the
+    # meal of 2024-07-10 on an account that had already moved to marketing. The sentence
+    # this plan prints claimed "resolved window by window" while the code did otherwise.
     trozos, params = [], []
     for ini, fin, hojas in resoluciones:
         if not hojas:
@@ -850,13 +850,13 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
                   for f in fx["rows"] if f["amount"] >= threshold]
     candidatos.sort(key=lambda c: -c["usd"])
 
-    # La 6230 se muda de Travel a Marketing a mitad de 2024, asi que la lectura por
-    # jerarquia y la lectura por nombre de cuenta no cuentan lo mismo. Cualquiera
-    # vale si se declara; el silencio no.
-    # Cuanto ANADIRIA la lectura por nombre: las filas de esas mismas cuentas que
-    # caen fuera de la ventana en que la cuenta pertenecia al grupo. La primera
-    # version comparaba contra el plan de cuentas y devolvia 0 siempre - una cifra
-    # tranquilizadora que no medía nada.
+    # 6230 moves from Travel to Marketing mid-2024, so reading by hierarchy and reading
+    # by account name do not count the same rows. Either is acceptable if stated;
+    # silence is not.
+    # What the by-name reading would ADD: rows in those same accounts falling outside
+    # the window in which the account belonged to the group. The first version compared
+    # against the chart of accounts and returned 0 every time - a reassuring figure that
+    # measured nothing.
     por_nombre = eje.con.execute(
         f"SELECT COUNT(*) FROM gl_transactions WHERE account_code IN ({marcas}) "
         f"AND (approval_ref='' OR approval_ref IS NULL)", en_alcance).fetchone()[0]
@@ -920,17 +920,16 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
                      date_field=date_field)
     fx = eje.usar(convert_currency, con=eje.con, rows=mayor["rows"])
 
-    # LOS OTROS ANOS SE CORREN TAMBIEN, Y NO ES POR COMPLETITUD.
-    # "The most recent year was used, and the same plan answers any of them" es
-    # cierto y no es lo que hace falta decir. Este archivo puede totalizar Q3 2023
-    # entero y Q3 2024 no, porque a septiembre le falta una tasa - y esa diferencia
-    # ES la respuesta a una de las dos preguntas que el enunciado espera que no
-    # tengan una limpia. EXPECTED.md, escrito antes que este codigo, ya daba los dos
-    # anos por eso mismo.
+    # THE OTHER YEARS ARE RUN TOO, AND NOT FOR COMPLETENESS.
+    # "The most recent year was used, and the same plan answers any of them" is true and
+    # is not what needs saying. This file can total Q3 2023 completely and Q3 2024 not at
+    # all, because September is missing a rate - and that difference IS the answer to one
+    # of the two questions the brief expects to have no clean one. EXPECTED.md, written
+    # before this code, already gave both years for exactly that reason.
     #
-    # Cuesta un par de consultas por ano candidato. Medido: el plan entero corre en
-    # 0,01 s. Con un archivo de diez anos serian diez pasadas - sigue siendo barato,
-    # y queda dicho aqui para que nadie se lo encuentre de sorpresa.
+    # It costs a couple of queries per candidate year. Measured: the whole plan runs in
+    # 0.01s. A ten-year file would mean ten passes - still cheap, and said here so nobody
+    # meets it as a surprise.
     otros = {}
     desde_mes, hasta_mes = f"{(int(quarter) - 1) * 3 + 1:02d}", f"{int(quarter) * 3:02d}"
     for candidato in _anios_con_datos(eje.con, date_field, desde_mes, hasta_mes):
@@ -957,8 +956,8 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
                else "None of them converts completely."))
 
     return {
-        # No se deduce del texto ni se decide de memoria: `unconverted` es una
-        # medicion de la herramienta. Vacia significa que nada se quedo fuera.
+        # Not inferred from the text and not decided from memory: `unconverted` is the
+        # tool's own measurement. Empty means nothing was left out.
         "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
         "period": f"Q{quarter} {year}",
         "other_years": otros,
@@ -982,7 +981,7 @@ RUTINAS = {
 }
 
 
-# -- el ejecutor -----------------------------------------------------------------
+# -- the executor ----------------------------------------------------------------
 
 def _comprobar_ruta(nombre, trace):
     """plans.py claims a sequence of tools. Here that claim is checked.
@@ -1043,8 +1042,8 @@ if __name__ == "__main__":
     db = RAIZ / (sys.argv[2] if len(sys.argv) > 2 else "data.db")
     if not db.exists():
         sys.exit(f"{db.name} not found. Run: python -m src.load")
-    # Todo llega como texto y se queda como texto. Convertir '6000' a entero lo
-    # haria dejar de casar contra una columna TEXT - cero filas y ni un aviso.
+    # Everything arrives as text and stays as text. Turning '6000' into an integer would
+    # stop it matching a TEXT column - zero rows, and not one warning.
     params = dict(a.split("=", 1) for a in sys.argv[3:] if "=" in a)
     con = sqlite3.connect(db)
     print(run(nombre, con, dataset=db.name, **params).render())
