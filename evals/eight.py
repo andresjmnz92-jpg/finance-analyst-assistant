@@ -41,6 +41,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 CASOS = [
     ("cost_per_fte", {"root": "6100"}),
     ("duplicate_payments", {}),
+    # No year on purpose: the question does not give one, and declaring that
+    # ambiguity is one of the behaviours under test.
+    ("consolidated_spend", {"quarter": "3"}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -76,6 +79,17 @@ EMISORES = {
         lambda t: any("These are CANDIDATES" in n for n in t["all_notes"]),
     "recurring charges look identical":
         lambda t: any("can be indistinguishable" in n for n in t["all_notes"]),
+    # consolidated_spend: three by structure, one by fx.py's own note.
+    "which year":
+        lambda t: (t["findings"] or {}).get("period"),
+    "the FX basis":
+        lambda t: any("month-average rate" in n for n in t["all_notes"]),
+    # Key EXISTENCE, not truthiness: an empty excluded list is the declaration
+    # that nothing was left out, and that is exactly what must be said.
+    "what could not be converted":
+        lambda t: "excluded" in (t["findings"] or {}),
+    "which years can be totalled completely":
+        lambda t: "other_years" in (t["findings"] or {}),
 }
 
 
