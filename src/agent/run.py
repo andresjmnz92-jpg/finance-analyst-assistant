@@ -933,6 +933,7 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     currencies, so a missing rate cannot vanish inside a subtotal. It comes back
     as `unconverted`, which is what makes this answer PARTIAL rather than wrong.
     """
+    quarter = _cuarto(quarter)
     year, desde, hasta = _trimestre(eje, year, quarter, date_field)
     if year is None:
         return {"status": "REFUSED", "period": f"Q{quarter}", "reason": "no rows in that quarter"}
