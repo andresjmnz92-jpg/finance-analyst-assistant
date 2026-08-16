@@ -81,11 +81,11 @@ def resolve_accounts(con, root, as_of):
     alcance = {r[0] for r in con.execute(sql, (root, as_of, as_of))}
     bajo = alcance - {root}
 
-    # Ser padre tambien tiene fecha. Preguntar por todo el plan de cuentas sin
-    # filtrar por `as_of` marcaba como nodo una cuenta que solo tuvo hijos en un
-    # periodo anterior, y la sacaba de las hojas justo cuando ya recibe apuntes:
-    # cero filas, cero avisos, respuesta cero. Es la misma trampa de vigencia que
-    # este modulo denuncia para el join del mayor.
+    # Being a parent has a date too. Asking the whole chart without filtering on
+    # `as_of` marked as a rollup an account that only had children in an earlier
+    # period, and dropped it from the leaves exactly when it starts taking postings:
+    # zero rows, zero warnings, an answer of zero. It is the same validity trap this
+    # module warns about for the ledger join.
     padres = {r[0] for r in con.execute(
         "SELECT DISTINCT parent_code FROM chart_of_accounts "
         "WHERE parent_code <> '' AND ? BETWEEN valid_from AND valid_to", (as_of,))}
@@ -93,8 +93,8 @@ def resolve_accounts(con, root, as_of):
     nodos = sorted(c for c in bajo if c in padres)
 
     notas = []
-    # Un root que ya es hoja se resuelve a si mismo. Devolver lista vacia hacia que
-    # preguntar por "airfare" diese cero con una explicacion falsa al lado.
+    # A root that is already a leaf resolves to itself. Returning an empty list made
+    # asking for "airfare" answer zero, with a false explanation beside it.
     if root in alcance and not bajo and root not in padres:
         hojas = [root]
         notas.append(f"'{root}' is itself a posting account, not a rollup: it resolves to "
@@ -114,8 +114,8 @@ def resolve_accounts(con, root, as_of):
                      f"accounts on {as_of}. Summing this returns zero, which is not the "
                      f"same as no spend.")
 
-    # Una cuenta con mas de una ventana significa que esta respuesta CAMBIA con la
-    # fecha. Quien pregunte por un periodo entero no puede usar una sola resolucion.
+    # An account with more than one window means this answer CHANGES with the date.
+    # Anyone asking about a whole period cannot use a single resolution.
     movidas = con.execute("""
         SELECT account_code, COUNT(*) FROM chart_of_accounts
          GROUP BY account_code HAVING COUNT(*) > 1""").fetchall()

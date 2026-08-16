@@ -76,8 +76,8 @@ def main(argv=None):
     if a.plan:
         if a.plan not in RUTINAS:
             sys.exit(f"'{a.plan}' is not a plan. Available: {', '.join(RUTINAS)}")
-        # Todo llega como texto y se queda como texto: convertir '6000' a entero
-        # lo hace dejar de casar contra una columna TEXT, cero filas y ni un aviso.
+        # Everything arrives as text and stays as text: turning '6000' into an integer
+        # stops it matching a TEXT column - zero rows, and not one warning.
         params = dict(x.split("=", 1) for x in a.param if "=" in x)
         trace = run(a.plan, con, dataset=db.name, **params)
     else:

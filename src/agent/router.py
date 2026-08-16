@@ -54,10 +54,10 @@ SISTEMA = (
 )
 
 
-# Perillas internas. Ofrecerlas invita a rellenarlas: el router devolvio
-# date_field="transaction_date", una columna que no existe. Ninguna pregunta en
-# ingles decide si un periodo se define por fecha de devengo o de asiento - eso es
-# una convencion del sistema, y la respuesta ya declara cual uso.
+# Internal knobs. Offering one invites filling it: the router returned
+# date_field="transaction_date", a column that does not exist. No English question
+# decides whether a period runs on accrual or posting date - that is a convention of
+# the system, and the answer already declares which one it used.
 INTERNOS = ("date_field",)
 
 

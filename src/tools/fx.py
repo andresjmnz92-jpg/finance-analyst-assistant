@@ -40,10 +40,10 @@ def convert_currency(con, rows, to="USD"):
     Returns result / notes / sql. `result["unconverted"]` is never omitted: an
     empty list is a positive statement that nothing was dropped.
     """
-    # La tabla se llama rate_to_usd y solo sabe convertir A dolares. Aceptar otro
-    # destino y aplicar la misma tasa devolvia un importe en USD con la etiqueta
-    # equivocada - 273 donde eran 157, sin una sola nota. Se rechaza en vez de
-    # calcular mal, porque el parametro existe y alguien lo va a usar.
+    # The column is rate_to_usd and it only converts INTO dollars. Accepting another
+    # target and applying the same rate returned a USD figure wearing the wrong label -
+    # 273 where the answer was 157, with no note anywhere. It refuses rather than
+    # miscalculating, because the parameter exists and somebody will use it.
     if to != "USD":
         raise ValueError(
             f"fx_rates only carries rate_to_usd, so USD is the only target this table "
@@ -53,8 +53,8 @@ def convert_currency(con, rows, to="USD"):
     tasas, repetidas = {}, {}
     for m, c, r in con.execute("SELECT period_month, currency, rate_to_usd FROM fx_rates"):
         if (m, c) in tasas and tasas[(m, c)] != r:
-            # Una clave repetida con otro valor reescala TODO en silencio: el dict se
-            # queda con la ultima fila que devuelva SQLite, que no es un criterio.
+            # A repeated key with a different value silently rescales EVERYTHING: the
+            # dict keeps whichever row SQLite returned last, which is not a decision.
             repetidas.setdefault((m, c), {tasas[(m, c)]}).add(r)
         tasas[(m, c)] = r
 
@@ -99,9 +99,9 @@ def convert_currency(con, rows, to="USD"):
             "rows_converted": transacciones,
             "groups_converted": len(convertidas),
             "unconverted": huecos,
-            # El rango de tasas de CADA moneda, medido sobre este archivo. Sirve para
-            # acotar lo que no se pudo convertir: "faltan 100 EUR" no dice nada, y
-            # "faltan entre 110 y 120 USD" decide si una desviacion cambia de signo.
+            # The rate range per currency, measured on this file. It bounds what could
+            # not be converted: "100 EUR missing" says nothing, while "between 110 and
+            # 120 USD missing" decides whether a deviation changes sign.
             "rate_range": {m: [min(v), max(v)] for m, v in sorted(
                 {c: [r for (_, cc), r in tasas.items() if cc == c]
                  for c in {cc for _, cc in tasas}}.items())},

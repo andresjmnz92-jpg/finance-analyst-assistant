@@ -39,27 +39,28 @@ they belong in it.
 
 import re
 
-# Sufijos societarios y ruido de puntuacion. La lista es corta a proposito: cuanto
-# mas agresiva, mas nombres distintos colapsan en uno.
+# Company suffixes and punctuation noise. The list is short on purpose: the more
+# aggressive it gets, the more unrelated names collapse into one.
 SUFIJOS = r"\b(?:B\.?V|N\.?V|GMBH|LTD|LIMITED|LLC|L\.?L\.?C|INC|S\.?A|PLC|CORP|CORPORATION|CO)\b"
 GENERICO = re.compile(r"\b(?:SUNDRY|VARIOUS|MISC|MISCELLANEOUS|OTHER|PROGRAM|DESK|SETTLEMENT)\b")
 
 
 def _clave(nombre):
-    """Nombre reducido a una clave de comparacion. Nunca se muestra al usuario."""
+    """A name reduced to a comparison key. Never shown to anyone."""
     s = nombre.upper()
-    # Las iniciales con punto se juntan ANTES de tocar el resto de la puntuacion.
-    # Al reves, "B.V." acababa en "B V" y el patron de sufijos, que busca BV pegado,
-    # dejaba de reconocerlo: la clave quedaba NORDWIND LOGISTICS B V y no casaba con
-    # NORDWIND LOGISTICS. Es el segundo fallo de esta misma familia en un dia, y
-    # ninguno de los dos dio error.
+    # Dotted initials are joined BEFORE the rest of the punctuation is touched. The
+    # other way round, "B.V." became "B V" and the suffix pattern - which looks for BV
+    # unbroken - stopped recognising it: the key came out NORDWIND LOGISTICS B V and no
+    # longer matched NORDWIND LOGISTICS. Second failure of this same family in one day,
+    # and neither raised anything.
     s = re.sub(r"\b([A-Z])\.\s*(?=[A-Z]\b|[A-Z]\.)", r"\1", s)
     s = re.sub(r"[.,&/()-]", " ", s)
     s = re.sub(SUFIJOS, " ", s)
     s = re.sub(r"\s+", " ", s).strip()
-    # Abreviaturas: LOG. por LOGISTICS, LOGISTIK por LOGISTICS. Se aplica al final,
-    # sobre la cadena ya limpia, para no dejar el token suelto que rompio el primer
-    # intento - alli quitar LOG dejaba NORDWIND, que no casaba con NORDWIND LOGISTICS.
+    # Abbreviations: LOG. for LOGISTICS, LOGISTIK for LOGISTICS. Applied last, over the
+    # already-cleaned string, so as not to leave the loose token that broke the first
+    # attempt - there, stripping LOG left NORDWIND, which did not match NORDWIND
+    # LOGISTICS.
     s = re.sub(r"\bLOGISTI\w*\b", "LOGISTICS", s)
     s = re.sub(r"\bLOG\b", "LOGISTICS", s)
     s = re.sub(r"\bTECH\w*\b", "TECHNICAL", s)
@@ -121,9 +122,9 @@ def normalize_vendors(con):
                      f"any largest-vendor ranking; include or exclude them explicitly.")
 
     return {
-        # `vendors` sale entero porque el mayor solo guarda vendor_id: sin esta lista
-        # cualquier ranking se imprime con codigos en vez de nombres, y nadie puede
-        # comprobar una agrupacion que no puede leer.
+        # `vendors` comes out whole because the ledger stores only vendor_id: without
+        # this list any ranking prints codes instead of names, and nobody can check a
+        # grouping they cannot read.
         "result": {"candidate_groups": grupos, "catch_all_vendors": cajones,
                    "vendor_count": len(proveedores),
                    "vendors": [{k: p[k] for k in ("vendor_id", "vendor_name", "txns")}

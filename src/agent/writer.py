@@ -50,8 +50,8 @@ import re
 from src.agent.model import ask
 from src.agent.plans import PLANS
 
-# Cualquier cosa con una cifra dentro. Se normaliza quitando separadores de miles
-# y ceros de cola para que 1,231,309.12 y 1231309.120 sean el mismo numero.
+# Anything with a figure inside. Normalised by dropping thousands separators and
+# trailing zeros, so that 1,231,309.12 and 1231309.120 are the same number.
 NUMERO = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 
 # ONE RULE, AND THE OTHER TWO WERE MEASURED AND REMOVED.
@@ -121,22 +121,21 @@ def _fabricados(texto, permitidos):
             valor = float(limpio)
         except ValueError:
             continue
-        # Solo lo que puede ser una CIFRA. Un entero pequeno y pelado en prosa es
-        # un conteo o una vineta: la guarda marcaba 5.00 y 8.00 de "5) Ridgeline,
-        # 8) ..." como inventados. Tercer falso positivo de la misma familia, y el
-        # dano que esta guarda existe para evitar es una cantidad de dinero
-        # inventada, no un ordinal.
+        # Only what could be a FIGURE. A small bare integer in prose is a count or a
+        # bullet: the guard flagged 5.00 and 8.00 out of "5) Ridgeline, 8) ..." as
+        # invented. Third false positive of the same family, and the damage this guard
+        # exists to prevent is an invented amount of money, not an ordinal.
         if "." not in bruto and "," not in bruto and abs(valor) < 1000:
             continue
         decimales = len(limpio.split(".")[1]) if "." in limpio else 0
         tolerancia = 10.0 ** -decimales
-        # Y en VALOR ABSOLUTO. El hallazgo medido es -204,257.95 y el modelo
-        # escribio "a decrease of USD 204,257.95", que es ingles correcto: la
-        # direccion va en la palabra y el signo no se repite. Comparando con signo
-        # la guarda marcaba como inventada una cifra exacta, en 2 de 6 corridas.
-        # Lo que se pierde y va dicho: un "increase" donde hubo caida ya no lo caza
-        # nadie. Esa clase de error es semantica, igual que atribuir un total al
-        # proveedor equivocado, y esta guarda nunca la iba a cubrir.
+        # And in ABSOLUTE VALUE. The measured finding is -204,257.95 and the model
+        # wrote "a decrease of USD 204,257.95", which is correct English: the direction
+        # lives in the word and the sign is not repeated. Comparing signed values, the
+        # guard flagged an exact figure as invented in 2 of 6 runs.
+        # What that costs, stated: an "increase" where there was a fall is no longer
+        # caught by anything. That class of error is semantic, like attaching a total
+        # to the wrong vendor, and this guard was never going to reach it.
         if not any(abs(valor - p) < tolerancia or abs(abs(valor) - abs(p)) < tolerancia
                    for p in permitidos):
             malos.add(valor)
@@ -227,10 +226,10 @@ def redactar(trace, budget, sistema=None):
 
     permitidos = _permitidos(datos)
     contrato = PLANS.get(datos["plan"], {}).get("must_declare", [])
-    # Los avisos SE LE ENSENAN aunque no los escriba, y esa correccion salio de leer
-    # la primera respuesta real: sin verlos escribio "the business achieved a
-    # meaningful reduction" sobre una caida que sus propios avisos explican en parte
-    # como un hueco de tasa. No repetirlos es una cosa; ignorarlos es otra.
+    # The caveats ARE SHOWN to it even though it does not write them, and that came
+    # from reading the first real answer: without seeing them it wrote "the business
+    # achieved a meaningful reduction" over a fall its own caveats half explain as a
+    # missing FX rate. Not repeating them is one thing; ignoring them is another.
     peticion = (
         f'Question: "{datos["question"]}"\n\n'
         f"Measured result:\n{json.dumps(datos['findings'], ensure_ascii=False, indent=1)}\n\n"
@@ -246,7 +245,7 @@ def redactar(trace, budget, sistema=None):
     trace.model_call(salida)
     inventados = _fabricados(salida["text"], permitidos)
 
-    # LA GUARDA ANOTA, NO BORRA - y esa correccion no es cosmetica.
+    # THE GUARD ANNOTATES, IT DOES NOT DELETE - and that correction is not cosmetic.
     # The first version threw the paragraph away after two rejections and printed
     # the raw findings. It also rejected "USD 4099409", which is a truncation of a
     # figure that exists. A guard that is wrong is worse than no guard: it deleted

@@ -51,10 +51,9 @@ def query_budget(con, period_from=None, period_to=None, cost_centres=None, accou
             else:
                 donde.append(f"{col} IN ({','.join('?' * len(val))})"); params += list(val)
 
-    # entity va en la particion. Sin ella, dos sociedades que comparten codigo de
-    # centro - normal en un grupo - salen como "dos versiones del presupuesto en
-    # conflicto", que es la alarma principal de esta herramienta disparandose sobre
-    # dos lineas correctas y sin relacion.
+    # entity belongs in the partition. Without it, two companies sharing a cost centre
+    # code - ordinary inside a group - come out as "two conflicting budget versions":
+    # this tool's loudest alarm firing over two correct and unrelated lines.
     sql = ("SELECT entity, cost_centre, account_code, period_month, budget_amount, currency, "
            "ROW_NUMBER() OVER (PARTITION BY entity, cost_centre, account_code, period_month "
            "ORDER BY rowid) AS version "
@@ -68,10 +67,10 @@ def query_budget(con, period_from=None, period_to=None, cost_centres=None, accou
     versiones = sorted({f["version"] for f in filas})
     afectados = sorted({f["cost_centre"] for f in filas if f["version"] > 1})
 
-    # Los totales por version se calculan SOLO sobre las claves que tienen dos, y el
-    # resto va aparte. Sumando todo, "set 1" incluiria los ocho centros sanos y
-    # "set 2" solo el duplicado: dos cifras correctas puestas de forma que se leen
-    # como un recorte del 90% que nunca existio.
+    # Per-version totals cover ONLY the keys that appear twice; everything else is
+    # reported separately. Summing all of it, "set 1" would include the eight healthy
+    # centres and "set 2" only the duplicated one: two correct figures arranged so they
+    # read as a 90% cut that never happened.
     duplicadas = {(f["entity"], f["cost_centre"], f["account_code"], f["period_month"])
                   for f in filas if f["version"] > 1}
     totales = {v: round(sum(f["amount"] for f in filas if f["version"] == v

@@ -98,8 +98,8 @@ class Budget:
         self.calls += 1
         self.input_tokens += entrada
         self.output_tokens += salida
-        # total, no entrada+salida: los tokens de razonamiento se facturan aqui
-        # dentro y no aparecen en ninguno de los otros dos.
+        # total, not input + output: reasoning tokens are billed inside this figure
+        # and appear in neither of the other two.
         self.total_tokens += max(total, entrada + salida)
         self.usd += usd
 
@@ -182,7 +182,7 @@ def ask(messages, budget, temperature=0.0, max_output_tokens=4000, timeout=60,
     entrada = uso.get("prompt_tokens", 0)
     salida = uso.get("completion_tokens", 0)
     total = uso.get("total_tokens", entrada + salida)
-    # El pensamiento se factura como salida aunque no se reporte como tal.
+    # Thinking is billed as output even where it is not reported as output.
     usd = entrada / 1e6 * usd_per_m_input + (total - entrada) / 1e6 * usd_per_m_output
     budget.record(entrada, salida, total, usd)
 
@@ -190,9 +190,9 @@ def ask(messages, budget, temperature=0.0, max_output_tokens=4000, timeout=60,
     texto = (eleccion["message"].get("content") or "").strip()
     razon = eleccion.get("finish_reason")
 
-    # Un 200 con el texto vacio es el peor fallo posible: parece que funciono.
-    # Pasa cuando max_tokens no deja sitio despues del razonamiento - medido, para
-    # una respuesta de UNA palabra hacen falta mas de 100 tokens.
+    # A 200 with empty text is the worst possible failure: it looks like it worked.
+    # It happens when max_tokens leaves no room after the reasoning - measured, ONE
+    # word of output needs more than 100 tokens.
     if not texto:
         raise RuntimeError(
             f"model returned an empty message (finish_reason={razon!r}, "

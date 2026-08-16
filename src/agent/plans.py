@@ -28,9 +28,9 @@ For Q4, Q5 and Q6 a model-driven variant is built as well and both are run. If t
 model version does better, that is the version that ships and the number says why.
 """
 
-# Cada plan declara: que herramientas usa, en que orden, y que ambiguedades tiene
-# que resolver o declarar quien lo ejecute. La lista de ambiguedades no es
-# documentacion: el runner comprueba que la respuesta las menciona.
+# Each plan declares which tools it uses, in what order, and which ambiguities
+# whoever runs it has to resolve or state. The ambiguity list is not documentation:
+# it is the contract an answer is judged against.
 
 PLANS = {
     "opex_by_cost_centre": {
@@ -38,22 +38,22 @@ PLANS = {
         "tools": ["resolve_accounts", "query_ledger", "convert_currency"],
         "must_declare": ["which year", "which date field defines the period",
                          "which account the phrase resolved to"],
-        # Medido antes de decidirlo: contra Meridian, 'travel' casa con una cuenta,
-        # 'operating expense' con dos (6000 y 6830, una dentro de la otra) y
-        # 'headcount' con NINGUNA - no hay cuenta que se llame asi, se llaman
-        # Personnel y Salaries & Wages. Ninguna regla de texto salva esa distancia,
-        # asi que el modelo elige de la lista que devuelve list_account_names y el
-        # codigo lo ata: resolve_accounts no resuelve nada que no este vigente ahi.
-        # Lo que cuesta equivocarse: con raiz 6830 este mismo plan responde
-        # 91,015.92 donde la respuesta es 12,780,721.78.
+        # Measured before deciding it: against Meridian, 'travel' matches one account,
+        # 'operating expense' matches two (6000 and 6830, one inside the other) and
+        # 'headcount' matches NONE - no account is called that, they are called
+        # Personnel and Salaries & Wages. No string rule bridges that distance, so the
+        # model picks from the list list_account_names returns and the code ties it
+        # down: resolve_accounts resolves nothing that is not in force there.
+        # What getting it wrong costs: with root 6830 this same plan answers
+        # 91,015.92 where the answer is 12,780,721.78.
         "model_decides": ["which account code the phrase 'operating expenses' means"],
     },
     "spend_comparison": {
         "question": "How did travel spend in 2024 compare to 2023?",
         "tools": ["resolve_accounts", "query_ledger", "convert_currency"],
-        # Dos resoluciones, una a cada lado del cambio de padre de la 6230. No es un
-        # detalle del plan: resolver una sola vez para todo el ano cuenta el gasto de
-        # marketing como viajes, o pierde el de viajes, segun la fecha que se elija.
+        # Two resolutions, one either side of 6230 changing parent. Not a detail of the
+        # plan: resolving once for the whole year counts marketing spend as travel, or
+        # loses travel spend, depending on which date is picked.
         "must_declare": ["account validity windows", "which date field",
                          "which account the phrase resolved to"],
         "model_decides": ["which account code the phrase 'travel' means"],
@@ -68,10 +68,10 @@ PLANS = {
     "largest_vendors": {
         "question": "Who are our ten largest vendors by spend?",
         "tools": ["normalize_vendors", "query_ledger", "convert_currency"],
-        # "the period" no estaba y la pregunta no lo dice: sin declararlo, un ranking
-        # de todo el mayor se lee como si fuera del ano en curso. Y "spend with no
-        # vendor" tampoco: en Meridian son el 46% del gasto - la nomina - asi que un
-        # top diez ordena la mitad del dinero sonando como si ordenara todo.
+        # "the period" was missing and the question does not state one: undeclared, a
+        # ranking of the whole ledger reads as if it were the current year. So was
+        # "spend with no vendor": in Meridian that is 46% of spend - payroll - so a top
+        # ten orders half the money while sounding like it ordered all of it.
         "must_declare": ["the vendor grouping applied", "catch-all vendors", "the FX basis",
                          "the period covered", "spend with no vendor"],
         "model_decides": ["whether to accept each proposed vendor grouping"],

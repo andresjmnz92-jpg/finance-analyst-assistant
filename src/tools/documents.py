@@ -47,8 +47,8 @@ def read_document(datos_dir, name=None):
 
     ruta = carpeta / name if name.endswith(".md") else carpeta / f"{name}.md"
     if not ruta.exists():
-        # Devolver la lista en vez de un error a secas: quien pregunta suele haber
-        # escrito mal el nombre, y la lista es la correccion.
+        # The list rather than a bare error: whoever asked has usually mistyped the
+        # name, and the list is the correction.
         return {"result": {"document": None, "documents": disponibles},
                 "notes": [f"'{name}' is not in this document pack. Available: "
                           f"{', '.join(disponibles)}. Nothing was read."],

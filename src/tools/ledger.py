@@ -22,9 +22,9 @@ disappearing inside a subtotal.
 
 CAMPOS_FECHA = ("accrual_date", "posting_date")
 
-# Solo estas columnas pueden agrupar o filtrar. No es paranoia de inyeccion - los
-# valores van parametrizados igual - es que una lista cerrada convierte un nombre
-# de columna mal escrito en un error inmediato en vez de en una consulta vacia.
+# Only these columns may group or filter. Not injection paranoia - the values are
+# parameterised anyway - but because a closed list turns a mistyped column name into
+# an immediate error instead of an empty result.
 DIMENSIONES = ("entity", "cost_centre", "account_code", "vendor_id", "currency")
 
 def _base_de_fecha(con, campo):
@@ -74,15 +74,15 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
         donde.append(f"{date_field} <= ?"); params.append(date_to)
     if accounts is not None:
         if not accounts:
-            # Lista vacia: la respuesta honesta es cero filas, no todas las filas.
+            # An empty list: the honest answer is no rows, not every row.
             donde.append("1 = 0")
         else:
             donde.append(f"account_code IN ({','.join('?' * len(accounts))})")
             params += list(accounts)
     for col, val in filtros.items():
-        # None significa "sin filtro" en TODOS los demas parametros de este
-        # repositorio. Aqui construia `col IN (NULL)`, que no casa con nada y
-        # devuelve cero filas indistinguible de un periodo vacio.
+        # None means "no filter" in EVERY other parameter in this repository. Here it
+        # built `col IN (NULL)`, which matches nothing and returns zero rows -
+        # indistinguishable from an empty period.
         if val is None:
             continue
         valores = val if isinstance(val, (list, tuple, set)) else [val]
@@ -92,8 +92,8 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
         donde.append(f"{col} IN ({','.join('?' * len(valores))})")
         params += list(valores)
 
-    # currency y el mes SIEMPRE salen: son lo que convert_currency necesita para
-    # buscar la tasa, y sin el mes no se puede saber cual falta.
+    # currency and the month ALWAYS come out: they are what convert_currency needs to
+    # find the rate, and without the month there is no way to say which one is missing.
     grupos = list(dict.fromkeys(tuple(group_by) + ("currency",)))
     seleccion = grupos + [f"substr({date_field},1,7) AS period_month"]
     sql = (f"SELECT {', '.join(seleccion)}, ROUND(SUM(amount),2) AS amount, COUNT(*) AS rows "
@@ -113,15 +113,15 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
     if not filas:
         notas.append("No rows matched. Check the period and the account list before "
                      "reporting this as a zero.")
-    # Netear creditos contra gastos es la convencion correcta y es invisible: el
-    # total sale mas bajo y nada dice por que. Se mide sobre las filas que este
-    # filtro devuelve, no sobre la tabla entera - un aviso sobre creditos que no
-    # entran en esta respuesta seria ruido.
+    # Netting credits against costs is the right convention and it is invisible: the
+    # total comes out lower and nothing says why. Measured over the rows this filter
+    # returns rather than the whole table - a warning about credits outside this
+    # answer is noise.
     #
-    # POR MONEDA, y la primera version no lo era. Sumaba los importes negativos de
-    # todas las monedas juntas: en Meridian eso daba -329,539.17, que son 68,917.97
-    # CAD + 112,441.83 EUR + 148,179.37 USD apilados. Un numero sin significado, en
-    # la herramienta cuyo docstring dice que nunca suma entre monedas.
+    # PER CURRENCY, and the first version was not. It added the negative amounts of
+    # every currency together: against Meridian that produced -329,539.17, which is
+    # 68,917.97 CAD plus 112,441.83 EUR plus 148,179.37 USD stacked. A figure with no
+    # meaning, inside the tool whose docstring says it never sums across currencies.
     creditos = con.execute(
         f"SELECT currency, COUNT(*), ROUND(SUM(amount),2) FROM gl_transactions "
         + (f"WHERE {' AND '.join(donde)} AND amount < 0 " if donde else "WHERE amount < 0 ")

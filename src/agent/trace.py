@@ -42,8 +42,8 @@ class Trace:
         self.question = question
         self.dataset = dataset
         self.steps = []
-        self.decisions = []         # elecciones que ninguna herramienta pudo tomar
-        self.findings = None        # los numeros crudos; la prosa la escribe el redactor
+        self.decisions = []         # choices no tool could make for the plan
+        self.findings = None        # the raw figures; the writer turns them into prose
         self.answer = None
         self.status = None          # COMPLETE / PARTIAL / REFUSED
         self.model = {"calls": 0, "tokens": 0, "usd": 0.0}
@@ -104,7 +104,7 @@ class Trace:
         self.answer, self.status = answer, status
         return self
 
-    # -- las dos formas de leer el mismo cuaderno --------------------------------
+    # -- the two ways of reading the same notebook -------------------------------
 
     def as_dict(self):
         return {
@@ -154,8 +154,8 @@ class Trace:
         m = d["model"]
         out.append(f'  model:   {m["calls"]} call(s), {m["tokens"]:,} tokens, ${m["usd"]:.4f}')
         out.append(f'  total:   {d["seconds"]}s')
-        # El estado se imprime aqui y no solo junto a la respuesta: una corrida sin
-        # redactor no tiene respuesta, y PARTIAL es justo lo que no se puede perder.
+        # The status prints here and not only beside the answer: a run with no writer
+        # has no answer, and PARTIAL is the one word that cannot be lost.
         out.append(f'  status:  {d["status"]}')
         if d["findings"]:
             out.append("")
@@ -171,21 +171,21 @@ class Trace:
 
 
 def _marca(nota):
-    """Un aviso que se lee igual que el resto no es un aviso.
+    """A warning that reads like everything else is not a warning.
 
-    Las herramientas escriben en MAYUSCULAS lo que el lector no puede saltarse:
-    NOT CONVERTED, TWO BUDGET SETS, AMBIGUOUS RATES. Se busca una palabra de tres
-    o mas letras, toda en mayusculas, cerca del principio de la nota.
+    Tools write in CAPITALS whatever the reader must not skip: NOT CONVERTED,
+    TWO BUDGET SETS, AMBIGUOUS RATES. This looks for a word of three letters or
+    more, all capitals, near the start of the note.
 
-    DOS INTENTOS FALLIDOS ANTES DE ESTE, LOS DOS SILENCIOSOS:
-      1. Comparar los primeros 20 caracteres con su version en mayusculas.
-         "NOT CONVERTED - no rate" falla ya en la palabra 'no'.
-      2. Un patron de regex escrito con la secuencia de limite de palabra dentro
-         de una cadena que no era raw. Python la convirtio en el caracter de
-         retroceso (0x08) - invisible en el editor - y el patron quedo buscando
-         "retroceso + mayusculas + retroceso", que no casa nunca. No dio error, y
-         solo se vio inspeccionando co_consts del bytecode compilado.
-    Sin regex: comparar palabras no tiene caracteres que escapar.
+    TWO FAILED ATTEMPTS BEFORE THIS ONE, BOTH SILENT:
+      1. Comparing the first 20 characters against their uppercase form.
+         "NOT CONVERTED - no rate" already fails on the word 'no'.
+      2. A regex written with the word-boundary sequence inside a string that was
+         not raw. Python turned it into the backspace character (0x08) - invisible
+         in the editor - and the pattern ended up looking for "backspace, capitals,
+         backspace", which never matches. It raised nothing, and it only showed up
+         by inspecting co_consts in the compiled bytecode.
+    No regex: comparing words has nothing to escape.
     """
     palabras = nota[:40].split()
     return "  ->!" if any(len(w) >= 3 and w.isalpha() and w.isupper() for w in palabras) else "note"

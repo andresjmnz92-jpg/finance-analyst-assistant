@@ -37,10 +37,10 @@ the ones it could not judge. Credit notes make it worse: 31 rows in Meridian are
 exact reversals of real invoices, so a naive detector flags them as duplicates.
 """
 
-# Se agrupa por lo que define un pago, no por cuando se registro. `currency` no es
-# opcional: sin ella, 5.000 EUR y 5.000 USD al mismo proveedor salen como un pago
-# hecho dos veces. En Meridian cada entidad usa una sola moneda y no se nota nunca;
-# en otro dataset con una entidad multimoneda es un duplicado inventado.
+# Grouped on what defines a payment, not on when it was recorded. `currency` is not
+# optional: without it, 5,000 EUR and 5,000 USD to the same vendor read as one payment
+# made twice. Every Meridian entity uses a single currency, so it never shows here; in
+# a dataset with one multi-currency entity it is an invented duplicate.
 CLAVE = ("entity", "cost_centre", "account_code", "currency", "amount", "vendor_id")
 
 
@@ -62,8 +62,8 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
     cols = ["txn_id", *CLAVE, "accrual_date", "doc_ref", "memo"]
     filas = [dict(zip(cols, r)) for r in con.execute(sql, params)]
 
-    # El mapa de proveedor a grupo: sin el, "Nordwind Logistics" y "NORDWIND LOG."
-    # son dos proveedores y el duplicado entre ambos no se ve.
+    # Vendor to group. Without it, "Nordwind Logistics" and "NORDWIND LOG." are two
+    # vendors and a duplicate between the two spellings is invisible.
     alias = {}
     if vendor_groups:
         for g in vendor_groups:
@@ -120,10 +120,10 @@ def find_duplicate_payments(con, vendor_groups=None, date_from=None, date_to=Non
         notas.append("Vendor variants were NOT merged. If the same company appears under more "
                      "than one vendor_id, duplicates between the spellings are invisible here.")
 
-    # Lo que este filtro DEJA FUERA lo cuenta quien lo aplica. Las filas sin
-    # proveedor - nomina - son identicas en importe entre si y formarian grupos de
-    # puro ruido, asi que se excluyen a proposito; excluir a proposito y no decirlo
-    # es lo mismo que excluir por error.
+    # Whatever a filter LEAVES OUT is counted by whoever applied it. Rows with no
+    # vendor - payroll - are identical in amount to each other and would form groups of
+    # pure noise, so they are excluded on purpose. Excluding on purpose without saying
+    # so reads exactly like excluding by mistake.
     fuera = con.execute(
         "SELECT COUNT(*) FROM gl_transactions WHERE vendor_id = '' OR vendor_id IS NULL"
     ).fetchone()[0]
