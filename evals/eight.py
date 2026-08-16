@@ -50,6 +50,7 @@ CASOS = [
     ("spend_comparison", {"root": "6200"}),
     ("largest_vendors", {}),
     ("budget_variance", {}),
+    ("policy_breaches", {"root": "6200"}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -135,6 +136,13 @@ EMISORES = {
         and "sign_flipped_by_missing_rates" in (t["findings"] or {}),
     "which sign flips because of them":
         lambda t: "sign_flipped_by_missing_rates" in (t["findings"] or {}),
+    # policy_breaches: what WAS checked is structure; what was NOT rides the
+    # decision run.py emits unconditionally, outside any branch.
+    "which policy rules are checkable with these columns":
+        lambda t: "rules_checked" in (t["findings"] or {}),
+    "which are not":
+        lambda t: any("cannot be checked against these columns" in n
+                      for n in t["all_notes"]),
 }
 
 
