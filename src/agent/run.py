@@ -810,7 +810,10 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
         doc = eje.usar(read_document, datos_dir=eje.datos_dir, name=nombre)
         # Section headings, kept from the same read: the what-was-not-checked
         # sentence below is BUILT from them, never asserted.
-        titulos[nombre] = re.findall(r"^#{2,}\s*(.+?)\s*$", doc["text"], re.M)
+        # Fenced blocks are dropped first: a `## comment` inside ``` is shell, not a
+        # heading, and citing it would attribute to the policy a section it never had.
+        sin_bloques = re.sub(r"```.*?```", "", doc["text"], flags=re.S)
+        titulos[nombre] = re.findall(r"^#{2,}\s*(.+?)\s*$", sin_bloques, re.M)
         texto = re.sub(r"\s+", " ", doc["text"])
         for m in re.finditer(r"[^.]*\.", texto):
             frase = m.group(0).strip()
@@ -890,7 +893,9 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
     # very run read, so it cannot describe a policy it was not given.
     docs_regla = list(dict.fromkeys(d["document"] for d in fuente)) or [
         n for n in catalogo["documents"] if "policy" in n.lower()]
-    secciones = [s for n in docs_regla for s in titulos.get(n, [])]
+    # Deduplicated, order preserved: two documents naming a section alike would
+    # otherwise count it twice and inflate the "N section(s)" the sentence prints.
+    secciones = list(dict.fromkeys(s for n in docs_regla for s in titulos.get(n, [])))
     resto = (f"The policy it came from ({', '.join(docs_regla)}) states "
              f"{len(secciones)} section(s): {'; '.join(secciones)}. The rest "
              if secciones else "All other rules the pack may state ")
