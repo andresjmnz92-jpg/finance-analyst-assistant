@@ -90,6 +90,13 @@ refusal must name its reason, and every `must_declare` entry in `plans.py` must 
 in the trace, found through a named emitter. What it deliberately cannot judge is the written
 paragraph — that is still graded by reading it.
 
+`CASOS` pins the root account codes of these two datasets, because the runner runs with no model
+anywhere and the account a phrase like "operating expenses" resolves to is the model's decision in
+the full pipeline. Against a chart numbered differently the plans refuse cleanly and the runner
+reports those refusals without failing them — the exemption is keyed to the reasons the code emits
+before its tools run, never to REFUSED in general, so `cost_per_fte` refusing on the schema still
+has to name both of its sources.
+
 ## Why there are two datasets
 
 The brief says the tools will be run against a second dataset with the same columns and different

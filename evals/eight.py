@@ -64,6 +64,19 @@ LEGALES = {"COMPLETE", "PARTIAL", "REFUSED"}
 # The other six compute their status from the data and are judged by coherence.
 ESTRUCTURALES = {"cost_per_fte": "REFUSED", "duplicate_payments": "COMPLETE"}
 
+# Reasons emitted by code for refusals that fire BEFORE the tools run: no
+# posting account under that root, one year of history, an empty quarter. The
+# evidence a must_declare entry needs is produced by those tools, so demanding
+# it here punishes a refusal that is correct. cost_per_fte's structural reason
+# is deliberately NOT in this tuple: that refusal must still name both sources.
+REFUSED_TEMPRANO = (
+    "resolved to no posting accounts",
+    "fewer than two years",
+    "no years available",
+    "no rows in ",
+    "no key has both actuals and a budget",
+)
+
 # Every must_declare entry with a NAMED emitter: the place in a finished trace
 # where that requirement is provably met. ARCHITECTURE.md asked for exactly
 # this, so a requirement nobody satisfies fails loudly instead of quietly.
@@ -168,14 +181,20 @@ def comprobar(nombre, trace, fallos):
     if nombre in ESTRUCTURALES and status != ESTRUCTURALES[nombre]:
         fallos.append(f"{donde}: {status}, but {ESTRUCTURALES[nombre]} is structural "
                       f"for this plan on any dataset with these columns")
-    for requisito in PLANS[nombre]["must_declare"]:
-        emisor = EMISORES.get(requisito)
-        if emisor is None:
-            fallos.append(f"{donde}: '{requisito}' has no named emitter in EMISORES - "
-                          f"a requirement nobody checks is satisfied by luck")
-        elif not emisor(trace):
-            fallos.append(f"{donde}: '{requisito}' is declared in plans.py but its "
-                          f"evidence is nowhere in the trace")
+    # An early refusal returns before the tools that publish the evidence, so
+    # its must_declare entries are exempt - by NAMED reason, never by REFUSED
+    # alone, which is what keeps cost_per_fte's schema refusal under the check.
+    temprano = status == "REFUSED" and any(m in (f.get("reason") or "")
+                                           for m in REFUSED_TEMPRANO)
+    if not temprano:
+        for requisito in PLANS[nombre]["must_declare"]:
+            emisor = EMISORES.get(requisito)
+            if emisor is None:
+                fallos.append(f"{donde}: '{requisito}' has no named emitter in EMISORES - "
+                              f"a requirement nobody checks is satisfied by luck")
+            elif not emisor(trace):
+                fallos.append(f"{donde}: '{requisito}' is declared in plans.py but its "
+                              f"evidence is nowhere in the trace")
     if status == "REFUSED":
         if not f.get("reason"):
             fallos.append(f"{donde}: refused without naming a reason - a silent "
