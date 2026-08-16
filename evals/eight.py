@@ -48,6 +48,7 @@ CASOS = [
     # model-free, so the account 'operating expenses' resolves to is fixed here.
     ("opex_by_cost_centre", {"root": "6000", "quarter": "2"}),
     ("spend_comparison", {"root": "6200"}),
+    ("largest_vendors", {}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -104,6 +105,22 @@ EMISORES = {
     # chart changed mid-period - one window is also a declaration.
     "account validity windows":
         lambda t: "windows" in (t["findings"] or {}),
+    # largest_vendors. Publishing BOTH rankings is the grouping declaration;
+    # catch-alls ride the step summary, because the tool returns the
+    # catch_all_vendors key unconditionally - empty is also an answer - while
+    # its note only fires when the list is non-empty.
+    "the vendor grouping applied":
+        lambda t: "ungrouped_top" in (t["findings"] or {})
+        and "grouping_changed" in (t["findings"] or {}),
+    "catch-all vendors":
+        lambda t: any(s["tool"] == "normalize_vendors"
+                      and any(x.startswith("catch_all_vendors:") for x in s["summary"])
+                      for s in t["steps"]),
+    "the period covered":
+        lambda t: any("names no period" in n or "period covered" in n
+                      for n in t["all_notes"]),
+    "spend with no vendor":
+        lambda t: "unattributed" in (t["findings"] or {}),
 }
 
 
