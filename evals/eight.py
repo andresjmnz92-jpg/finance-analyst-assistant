@@ -44,6 +44,9 @@ CASOS = [
     # No year on purpose: the question does not give one, and declaring that
     # ambiguity is one of the behaviours under test.
     ("consolidated_spend", {"quarter": "3"}),
+    # root is the decision the model takes in the full pipeline; this runner is
+    # model-free, so the account 'operating expenses' resolves to is fixed here.
+    ("opex_by_cost_centre", {"root": "6000", "quarter": "2"}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -90,6 +93,12 @@ EMISORES = {
         lambda t: "excluded" in (t["findings"] or {}),
     "which years can be totalled completely":
         lambda t: "other_years" in (t["findings"] or {}),
+    # opex_by_cost_centre. 'which year' is shared and already holds: its
+    # evidence lives in the same findings key, period.
+    "which date field defines the period":
+        lambda t: any("Period assigned by" in n for n in t["all_notes"]),
+    "which account the phrase resolved to":
+        lambda t: (t["findings"] or {}).get("root"),
 }
 
 
