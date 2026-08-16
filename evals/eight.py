@@ -141,7 +141,7 @@ EMISORES = {
     "which policy rules are checkable with these columns":
         lambda t: "rules_checked" in (t["findings"] or {}),
     "which are not":
-        lambda t: any("cannot be checked against these columns" in n
+        lambda t: any("were not checked against these columns" in n
                       for n in t["all_notes"]),
 }
 

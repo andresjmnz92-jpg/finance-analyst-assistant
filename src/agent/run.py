@@ -804,10 +804,13 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
     # whoever asked rather than the policy's, and that changes what the answer is worth.
     # "No claim without a source" is the brief's own line.
     catalogo = eje.usar(read_document, datos_dir=eje.datos_dir)
-    fuente = []
+    fuente, titulos = [], {}
     entero = f"{int(threshold):,}"
     for nombre in catalogo["documents"]:
         doc = eje.usar(read_document, datos_dir=eje.datos_dir, name=nombre)
+        # Section headings, kept from the same read: the what-was-not-checked
+        # sentence below is BUILT from them, never asserted.
+        titulos[nombre] = re.findall(r"^#{2,}\s*(.+?)\s*$", doc["text"], re.M)
         texto = re.sub(r"\s+", " ", doc["text"])
         for m in re.finditer(r"[^.]*\.", texto):
             frase = m.group(0).strip()
@@ -879,12 +882,25 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
             f"No document in this pack states a {threshold:,.0f} approval threshold, so the "
             f"rule applied came from whoever asked and not from the policy. The candidates "
             f"below are still measured, but they breach a rule this dataset does not carry.")
+    # The first version of this decision enumerated Meridian's six rules in a fixed
+    # string - fare class, room rate, per-diem - and was already FALSE against the
+    # fixture, whose policy has four sections and none of those rules. It escaped
+    # no_borrowed_facts because that eval reads tool notes and this is a plan
+    # decision. Now the sentence is built from the headings of the documents this
+    # very run read, so it cannot describe a policy it was not given.
+    docs_regla = list(dict.fromkeys(d["document"] for d in fuente)) or [
+        n for n in catalogo["documents"] if "policy" in n.lower()]
+    secciones = [s for n in docs_regla for s in titulos.get(n, [])]
+    resto = (f"The policy it came from ({', '.join(docs_regla)}) states "
+             f"{len(secciones)} section(s): {'; '.join(secciones)}. The rest "
+             if secciones else "All other rules the pack may state ")
     eje.trace.decision(
-        "Five of the policy's six rules cannot be checked against these columns: fare class "
-        "and flight duration, nightly room rate (needs city and nights), the daily per-diem "
-        "(needs days), client entertainment sign-off (needs attendees, and client meals share "
-        "an account with employee meals), and the non-reimbursable list (needs to know what "
-        "was bought). Only the approval-reference rule uses columns that exist.")
+        "One rule was checked, because only its facts are columns: amount and "
+        "approval_ref exist, so the approval-reference rule is answerable from this "
+        "file. " + resto +
+        "were not checked against these columns: turning policy text into checkable "
+        "rules is a reading this plan does not take - it is the model's declared "
+        "decision in the full pipeline.")
     eje.trace.decision(
         f"An account that changed parent inside the period is in scope only while it belonged "
         f"there, because scope was resolved window by window. Read by account NAME instead of "
