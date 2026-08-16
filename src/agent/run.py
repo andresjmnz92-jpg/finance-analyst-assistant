@@ -344,7 +344,7 @@ def largest_vendors(eje, top=10, date_from=None, date_to=None, date_field="accru
 
     Meridian lists Nordwind four times, one record per person who could not find
     the existing one. Split, its best variant does not reach the top ten; grouped,
-    it is the fourth largest vendor in the company. The ranking is therefore not a
+    it is the LARGEST vendor in the company. The ranking is therefore not a
     sum, it is a decision - and the brief asks for an interface that "must show
     the work, not just the conclusion".
 
