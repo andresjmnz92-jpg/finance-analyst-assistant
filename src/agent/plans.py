@@ -54,7 +54,7 @@ PLANS = {
         # Two resolutions, one either side of 6230 changing parent. Not a detail of the
         # plan: resolving once for the whole year counts marketing spend as travel, or
         # loses travel spend, depending on which date is picked.
-        "must_declare": ["account validity windows", "which date field",
+        "must_declare": ["account validity windows", "which date field defines the period",
                          "which account the phrase resolved to"],
         "model_decides": ["which account code the phrase 'travel' means"],
     },
