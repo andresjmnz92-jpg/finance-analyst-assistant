@@ -47,6 +47,7 @@ CASOS = [
     # root is the decision the model takes in the full pipeline; this runner is
     # model-free, so the account 'operating expenses' resolves to is fixed here.
     ("opex_by_cost_centre", {"root": "6000", "quarter": "2"}),
+    ("spend_comparison", {"root": "6200"}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -99,6 +100,10 @@ EMISORES = {
         lambda t: any("Period assigned by" in n for n in t["all_notes"]),
     "which account the phrase resolved to":
         lambda t: (t["findings"] or {}).get("root"),
+    # spend_comparison: the windows finding is published whether or not the
+    # chart changed mid-period - one window is also a declaration.
+    "account validity windows":
+        lambda t: "windows" in (t["findings"] or {}),
 }
 
 
