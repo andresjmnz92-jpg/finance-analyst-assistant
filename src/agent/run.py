@@ -92,6 +92,13 @@ def _anios_con_datos(con, campo, desde_mes, hasta_mes):
         f"WHERE substr({campo},6,2) BETWEEN ? AND ? ORDER BY 1", (desde_mes, hasta_mes))]
 
 
+def _cuarto(quarter):
+    """2, "2", "Q2" and "q2" are the same quarter. The model reads "Q2" in the
+    question and writes "Q2" back, which is not a mistake - it is the interface
+    asking for a number and being handed the word it was given."""
+    return int(re.sub(r"[^0-9]", "", str(quarter)))
+
+
 def _trimestre(eje, year, quarter, date_field):
     """Resolve "Q3" into real dates, and say out loud which year was taken.
 
@@ -107,7 +114,7 @@ def _trimestre(eje, year, quarter, date_field):
     it out of the question, so this is the likeliest way a wrong year ever
     arrives.
     """
-    quarter = int(quarter)
+    quarter = _cuarto(quarter)
     desde_mes, hasta_mes = f"{(quarter - 1) * 3 + 1:02d}", f"{quarter * 3:02d}"
     anios = _anios_con_datos(eje.con, date_field, desde_mes, hasta_mes)
     if not anios:
@@ -280,8 +287,12 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
         eje.trace.decision(f"This file holds {len(anios)} year(s) of ledger data "
                            f"({', '.join(anios) or 'none'}); a comparison needs two.")
         return {"status": "REFUSED", "reason": "fewer than two years in the ledger"}
+    # Se ORDENAN, no se confia en el orden. El router devolvio year_a=2024 y
+    # year_b=2023, que invierte el signo de la diferencia - y no se equivoco: "a" y
+    # "b" no significan nada. Ordenar quita la pregunta en vez de contestarla.
     year_b = year_b or anios[-1]
     year_a = year_a or anios[-2]
+    year_a, year_b = sorted((str(year_a), str(year_b)))
     if not (year_a and year_b):
         eje.trace.decision("The question names no years and the ledger offers none to pick.")
         return {"status": "REFUSED", "reason": "no years available"}
