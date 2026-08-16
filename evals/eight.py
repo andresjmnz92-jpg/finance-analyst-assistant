@@ -182,19 +182,22 @@ def comprobar(nombre, trace, fallos):
         fallos.append(f"{donde}: {status}, but {ESTRUCTURALES[nombre]} is structural "
                       f"for this plan on any dataset with these columns")
     # An early refusal returns before the tools that publish the evidence, so
-    # its must_declare entries are exempt - by NAMED reason, never by REFUSED
+    # its EVIDENCE checks are exempt - by NAMED reason, never by REFUSED
     # alone, which is what keeps cost_per_fte's schema refusal under the check.
     temprano = status == "REFUSED" and any(m in (f.get("reason") or "")
                                            for m in REFUSED_TEMPRANO)
-    if not temprano:
-        for requisito in PLANS[nombre]["must_declare"]:
-            emisor = EMISORES.get(requisito)
-            if emisor is None:
-                fallos.append(f"{donde}: '{requisito}' has no named emitter in EMISORES - "
-                              f"a requirement nobody checks is satisfied by luck")
-            elif not emisor(trace):
-                fallos.append(f"{donde}: '{requisito}' is declared in plans.py but its "
-                              f"evidence is nowhere in the trace")
+    for requisito in PLANS[nombre]["must_declare"]:
+        emisor = EMISORES.get(requisito)
+        # Registry coverage is integrity of the SUITE, not of the data, so it
+        # never depends on which path the run took: a requirement with no
+        # emitter is unchecked on every dataset, and exempting it would let it
+        # go missing in silence. Only the evidence below respects `temprano`.
+        if emisor is None:
+            fallos.append(f"{donde}: '{requisito}' has no named emitter in EMISORES - "
+                          f"a requirement nobody checks is satisfied by luck")
+        elif not temprano and not emisor(trace):
+            fallos.append(f"{donde}: '{requisito}' is declared in plans.py but its "
+                          f"evidence is nowhere in the trace")
     if status == "REFUSED":
         if not f.get("reason"):
             fallos.append(f"{donde}: refused without naming a reason - a silent "
