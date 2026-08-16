@@ -78,11 +78,17 @@ Sample runs are committed under [`traces/`](traces/).
 ## How to run the evals
 
 ```bash
+python -m evals.eight               # the eight plans, both datasets, no model anywhere
 python -m evals.no_borrowed_facts   # no tool quotes a fact from a dataset it was not given
 python -m evals.guards              # every fixed defect still fires, against mutated data
 ```
 
-**A runner over the eight questions does not exist yet** — see *Status*.
+`evals.eight` stores no expected answer — the rule that bans hardcoded figures turned out to bind
+statuses too, since six of the eight plans compute theirs from whether an FX rate was missing.
+Instead it judges coherence: a status must agree with the evidence the same run published, a
+refusal must name its reason, and every `must_declare` entry in `plans.py` must have its evidence
+in the trace, found through a named emitter. What it deliberately cannot judge is the written
+paragraph — that is still graded by reading it.
 
 ## Why there are two datasets
 
@@ -126,8 +132,8 @@ own, and nobody should discover that by accident.
 | ✅ The eight plans | Every figure checked against `EXPECTED.md`, on both datasets |
 | ✅ The router | 8 of 8 questions to the right plan, with the right account code each time |
 | ✅ The writer, the trace and the CLI | One model call to route, one to write; figures and caveats printed by code |
-| ✅ Two eval commands | `no_borrowed_facts` and `guards` |
-| ⬜ A runner over the eight questions | Today the answers are graded by reading them, not by a command |
+| ✅ Three eval commands | `eight`, `no_borrowed_facts` and `guards` |
+| ✅ A runner over the eight questions | `python -m evals.eight`: 16 runs, statuses judged by coherence with their own evidence, all 26 `must_declare` entries backed by a named emitter |
 | ⬜ The expected behaviour for Meridian's eight | Written, but not yet in this repository nor in English |
 | ⬜ Traces for all eight | Two committed so far |
 

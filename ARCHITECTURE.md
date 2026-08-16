@@ -140,10 +140,10 @@ by 90%, and a ceiling that cannot see the spend is not a ceiling.
 | Nothing is hardcoded to Meridian | The same loader and the same plans run over both datasets; `python -m evals.no_borrowed_facts` fails if a tool's note mentions anything only Meridian has |
 | The guards still fire | `python -m evals.guards` reproduces each fixed defect on a mutated copy of the fixture, and each was verified in the failing direction |
 | The router picks correctly | 8 of 8 questions to the right plan, with the right account code each time |
-| The answers declare what they must | **Not automated yet.** Graded once by an independent reviewer against each plan's `must_declare`; two of five failed and the three causes are fixed. A runner over the eight is the next thing to build. |
+| The answers declare what they must | **Automated in `evals/eight.py`.** First graded by an independent reviewer — two of five failed and the three causes were fixed. Now every `must_declare` entry has a named emitter, and the runner fails if its evidence is missing from the trace |
 
-The last row is the honest state of this repository: the arithmetic is checked mechanically, the
-prose is not.
+The honest remainder of that row: the trace is checked mechanically, the paragraph is not — prose
+is still graded by reading it.
 
 ## What I would change with more time
 
@@ -152,4 +152,6 @@ independent grading, and both failures were the same shape: content the code had
 sat in the findings as a raw key, and the paragraph — the only path it had to the reader — did not
 carry it. The fix was to print it from code. The general version of that fix is a check that every
 `must_declare` entry has a named emitter, so a requirement nobody satisfies fails loudly instead of
-quietly.
+quietly. That check has since been built — `EMISORES` in `evals/eight.py` — so what remains of
+this item is the metric itself: a per-question judgement of whether the paragraph carries what the
+trace proved.

@@ -93,9 +93,17 @@ fact, and every one is about the data or about the system — not about prose:
 "resolved window by window" the plan printed that sentence while querying the whole period
                             with the union of every window - caught by the fixture, five
                             candidates against six
-"the eval runner asserts"   there is no eval runner
+"the eval runner asserts"   there was no eval runner when that was written (one exists
+                            now: evals/eight.py)
 several tools' notes        Meridian's own row counts and date ranges, stated as fact, in
                             text that travels into the answer against any dataset
+"five of the six rules"     a fixed string enumerating Meridian's policy, emitted as a
+                            decision against ANY dataset - already false against the
+                            fixture, whose policy has four sections and none of those
+                            rules. Found while anchoring the runner's emitters; it had
+                            escaped no_borrowed_facts, which reads tool notes, and this
+                            was a plan decision. The sentence is now built from the
+                            headings of the documents the run actually read
 ```
 
 Every one reads well and none was checked. Prompting did not fix it, because it is not disobedience
@@ -174,10 +182,11 @@ part that could not have been recovered later.
 
 ## What I would do with two more days
 
-1. **A runner over the eight questions.** The arithmetic is checked mechanically against a contract
-   written before the code; the prose is not checked at all. Each plan already declares what its
-   answer must surface — that list should have a named emitter, so a requirement nobody satisfies
-   fails loudly instead of quietly.
+1. **Judging the paragraph, not just the trace.** The runner over the eight has since been built
+   (`evals/eight.py`): statuses judged by coherence with their own published evidence, every
+   `must_declare` entry backed by a named emitter — and building it caught one more fixed-string
+   claim, listed above. What still nobody checks by command is the written paragraph itself:
+   whether the prose carries what the trace proved.
 2. **Real cost accounting.** The ceiling reports $0.00 because nothing supplies prices. On a free
    tier that is true and still wrong: a reported zero reads as measured.
 3. **Read documents in any format.** Only `.md` is seen today, so a `.txt` policy would make the
