@@ -75,8 +75,10 @@ EMISORES = {
     "that the denominator is absent":
         lambda t: "denominator_columns_found" in (t["findings"] or {})
         and not t["findings"]["denominator_columns_found"],
+    # Key EXISTENCE, not truthiness: an empty list declares that NO document
+    # mentions headcount - run.py's own branch for that case, and a legal refusal.
     "the source that says so":
-        lambda t: (t["findings"] or {}).get("what_the_documents_say"),
+        lambda t: "what_the_documents_say" in (t["findings"] or {}),
     # duplicate_payments: anchored on notes the TOOL emits unconditionally
     # (duplicates.py), the same way guards.py anchors on 'Negative amounts'.
     # Code-emitted strings are stable; the writer's prose is not.
