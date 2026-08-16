@@ -75,6 +75,10 @@ Three smaller ones, each invisible until something specific was measured:
 | `convert_currency` reported *"1 row worth 1,231,309 EUR could not be converted"*. The amount was right; the count was 147 | Calling the same tool two ways and comparing |
 | The first live model call returned HTTP 200 and an empty string | `finish_reason: length`. Reasoning tokens count against `max_tokens` and appear in neither `prompt_tokens` nor `completion_tokens` — my ceiling saw 9 where the provider counted 106 |
 
+Those twenty were one review; a second one that afternoon — three agents rather than me, because
+my own verification had found none of the twenty — turned up six different ones, each re-measured
+here before it was accepted, and those six are what `evals/guards.py` exists for.
+
 **And at the end, the answers themselves were graded by someone other than me. Two of five failed** —
 not on a figure, but because content the code had already computed sat in the findings as a raw key
 and never reached a sentence. The vendor ranking existed only inside the model's paragraph, and 46%
