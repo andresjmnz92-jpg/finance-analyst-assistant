@@ -31,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.agent.plans import PLANS                          # noqa: E402
 from src.agent.run import run                              # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -51,6 +52,21 @@ LEGALES = {"COMPLETE", "PARTIAL", "REFUSED"}
 # and duplicate_payments never touches FX, so it has no PARTIAL to fall into.
 # The other six compute their status from the data and are judged by coherence.
 ESTRUCTURALES = {"cost_per_fte": "REFUSED", "duplicate_payments": "COMPLETE"}
+
+# Every must_declare entry with a NAMED emitter: the place in a finished trace
+# where that requirement is provably met. ARCHITECTURE.md asked for exactly
+# this, so a requirement nobody satisfies fails loudly instead of quietly.
+# Evidence is structure - findings keys and code-emitted notes - never the
+# writer's paragraph; a prose check already failed three times in this repo.
+# A plan in CASOS whose requirement has no emitter here is itself a failure.
+EMISORES = {
+    # cost_per_fte: the refusal must rest on the schema AND name its source.
+    "that the denominator is absent":
+        lambda t: "denominator_columns_found" in (t["findings"] or {})
+        and not t["findings"]["denominator_columns_found"],
+    "the source that says so":
+        lambda t: (t["findings"] or {}).get("what_the_documents_say"),
+}
 
 
 def comprobar(nombre, trace, fallos):
@@ -73,6 +89,14 @@ def comprobar(nombre, trace, fallos):
     if nombre in ESTRUCTURALES and status != ESTRUCTURALES[nombre]:
         fallos.append(f"{donde}: {status}, but {ESTRUCTURALES[nombre]} is structural "
                       f"for this plan on any dataset with these columns")
+    for requisito in PLANS[nombre]["must_declare"]:
+        emisor = EMISORES.get(requisito)
+        if emisor is None:
+            fallos.append(f"{donde}: '{requisito}' has no named emitter in EMISORES - "
+                          f"a requirement nobody checks is satisfied by luck")
+        elif not emisor(trace):
+            fallos.append(f"{donde}: '{requisito}' is declared in plans.py but its "
+                          f"evidence is nowhere in the trace")
     if status == "REFUSED":
         if not f.get("reason"):
             fallos.append(f"{donde}: refused without naming a reason - a silent "
