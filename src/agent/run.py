@@ -753,6 +753,147 @@ def duplicate_payments(eje, date_from=None, date_to=None):
     }
 
 
+def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
+    """Transactions that look like they breached the T&E policy. Candidates.
+
+    ONE RULE OF SIX IS CHECKABLE, AND SAYING WHICH FIVE ARE NOT IS THE ANSWER
+
+    Meridian's policy carries six rules. Read against the columns that exist:
+
+        economy class under six hours      needs flight duration and fare class
+        nightly cap 275 / 190             needs city and nights
+        per-diem 85 per day               needs days travelled
+        entertainment over 500 needs a VP  needs attendees, and client meals share
+                                           an account with employee meals
+        expenses >= 1,000 need an approval  amount and approval_ref ARE columns
+        non-reimbursable list              needs to know what was bought
+
+    Five of the six ask for facts this dataset does not hold. Only the approval
+    rule is answerable, and reporting that plainly is worth more than five
+    guesses.
+
+    THE 88% TRAP, MEASURED
+    The approval rule applied to the WHOLE ledger flags 6,376 of 7,237 rows -
+    88% of everything over the threshold. Applied to travel accounts only: 12 of
+    873, which is 1%. The policy says which expenses it governs, so scope is not
+    a refinement, it is the difference between a finding and a wall of noise.
+    Scope comes from `root`, resolved per validity window like every other plan.
+
+    WHY CANDIDATES AND NOT BREACHES
+    An expense over the threshold with no approval_ref might have been approved
+    on paper, approved late, or approved under a reference nobody typed in. The
+    rule is checkable; the conclusion is not.
+    """
+    threshold = float(threshold)
+
+    # LA REGLA CITA SU FUENTE O SE DECLARA SIN FUENTE.
+    # El umbral llega como parametro - lo pone el modelo tras leer la politica, o
+    # quien llame a mano. Si no aparece en ningun documento del paquete, la regla es
+    # una afirmacion de quien pregunto, no de la politica, y eso cambia lo que vale
+    # la respuesta. "No claim without a source" es del enunciado.
+    catalogo = eje.usar(read_document, datos_dir=eje.datos_dir)
+    fuente = []
+    entero = f"{int(threshold):,}"
+    for nombre in catalogo["documents"]:
+        doc = eje.usar(read_document, datos_dir=eje.datos_dir, name=nombre)
+        texto = re.sub(r"\s+", " ", doc["text"])
+        for m in re.finditer(r"[^.]*\.", texto):
+            frase = m.group(0).strip()
+            if (entero in frase or str(int(threshold)) in frase) and "approv" in frase.lower():
+                fuente.append({"document": nombre, "sentence": re.sub(r"\*+", "", frase)})
+
+    rango = eje.con.execute(
+        f"SELECT MIN({date_field}), MAX({date_field}) FROM gl_transactions").fetchone()
+    filas, resoluciones = _sumar_periodo(eje, root, rango[0], rango[1], date_field,
+                                         group_by=("account_code",))
+    if filas is None:
+        return {"status": "REFUSED", "root": root,
+                "reason": "the policy scope resolved to no posting accounts; see the note"}
+    en_alcance = sorted({c for _, _, hojas in resoluciones for c in hojas})
+
+    # UNA CONDICION POR VENTANA, y la primera version no lo hacia. Juntaba las hojas
+    # de todas las ventanas y consultaba el periodo entero, asi que una cuenta que
+    # solo estuvo en alcance hasta junio seguia contando en agosto. El fixture lo
+    # caza a proposito: con la union salen 6 candidatos donde su contrato dice 5, y
+    # el sobrante es la comida del 2024-07-10 en una cuenta que ya era de marketing.
+    # La frase que este plan emite afirmaba "resuelto ventana por ventana" mientras
+    # el codigo hacia otra cosa.
+    trozos, params = [], []
+    for ini, fin, hojas in resoluciones:
+        if not hojas:
+            continue
+        trozos.append(f"({date_field} BETWEEN ? AND ? AND account_code IN "
+                      f"({','.join('?' * len(hojas))}))")
+        params += [ini, fin] + list(hojas)
+    sql = (f"SELECT txn_id, {date_field}, entity, cost_centre, account_code, amount, currency, "
+           f"substr({date_field},1,7), vendor_id, memo FROM gl_transactions "
+           f"WHERE ({' OR '.join(trozos)}) AND (approval_ref = '' OR approval_ref IS NULL)")
+    sospechosas = [dict(zip(("txn_id", "date", "entity", "cost_centre", "account_code", "amount",
+                             "currency", "period_month", "vendor_id", "memo"), r))
+                   for r in eje.con.execute(sql, params)]
+    marcas = ",".join("?" * len(en_alcance))
+    fx = eje.usar(convert_currency, con=eje.con, rows=sospechosas)
+
+    candidatos = [{**f, "usd": f["amount"], "rule": f"expense >= {threshold:,.0f} USD with no "
+                                                   f"approval reference recorded"}
+                  for f in fx["rows"] if f["amount"] >= threshold]
+    candidatos.sort(key=lambda c: -c["usd"])
+
+    # La 6230 se muda de Travel a Marketing a mitad de 2024, asi que la lectura por
+    # jerarquia y la lectura por nombre de cuenta no cuentan lo mismo. Cualquiera
+    # vale si se declara; el silencio no.
+    # Cuanto ANADIRIA la lectura por nombre: las filas de esas mismas cuentas que
+    # caen fuera de la ventana en que la cuenta pertenecia al grupo. La primera
+    # version comparaba contra el plan de cuentas y devolvia 0 siempre - una cifra
+    # tranquilizadora que no medía nada.
+    por_nombre = eje.con.execute(
+        f"SELECT COUNT(*) FROM gl_transactions WHERE account_code IN ({marcas}) "
+        f"AND (approval_ref='' OR approval_ref IS NULL)", en_alcance).fetchone()[0]
+    fuera = por_nombre - len(sospechosas)
+
+    eje.trace.decision(
+        f"Scope is what the policy governs, not the whole ledger. It was resolved from "
+        f"'{root}' to {len(en_alcance)} posting account(s) per validity window. The same rule "
+        f"applied to every account in this file flags "
+        + str(eje.con.execute(
+            "SELECT COUNT(*) FROM gl_transactions WHERE amount >= ? AND "
+            "(approval_ref='' OR approval_ref IS NULL)", (threshold,)).fetchone()[0])
+        + " row(s), which is a wall of noise rather than a finding.")
+    if fuente:
+        eje.trace.decision(
+            "The rule applied is the policy's own, quoted: "
+            + " ".join(f'{d["document"]}: "{d["sentence"]}"' for d in fuente))
+    else:
+        eje.trace.decision(
+            f"No document in this pack states a {threshold:,.0f} approval threshold, so the "
+            f"rule applied came from whoever asked and not from the policy. The candidates "
+            f"below are still measured, but they breach a rule this dataset does not carry.")
+    eje.trace.decision(
+        "Five of the policy's six rules cannot be checked against these columns: fare class "
+        "and flight duration, nightly room rate (needs city and nights), the daily per-diem "
+        "(needs days), client entertainment sign-off (needs attendees, and client meals share "
+        "an account with employee meals), and the non-reimbursable list (needs to know what "
+        "was bought). Only the approval-reference rule uses columns that exist.")
+    eje.trace.decision(
+        f"An account that changed parent inside the period is in scope only while it belonged "
+        f"there, because scope was resolved window by window. Read by account NAME instead of "
+        f"by hierarchy, {fuera} further unapproved row(s) in those same accounts come into "
+        f"view - how many of them clear the threshold is not computed, because this reading "
+        f"was not the one taken. Either is defensible; this one is stated.")
+
+    return {
+        "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
+        "root": root, "threshold_usd": threshold,
+        "accounts_in_scope": en_alcance,
+        "candidate_count": len(candidatos),
+        "candidates": candidatos[:20],
+        "rule_source": fuente,
+        "rules_checked": 1,
+        "rows_examined": len(sospechosas),
+        "excluded": fx["unconverted"],
+    }
+
+
 def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     """Total spend for a quarter in USD, and what could not be converted.
 
@@ -824,6 +965,7 @@ RUTINAS = {
     "budget_variance": budget_variance,
     "cost_per_fte": cost_per_fte,
     "duplicate_payments": duplicate_payments,
+    "policy_breaches": policy_breaches,
     "spend_comparison": spend_comparison,
     "consolidated_spend": consolidated_spend,
 }
