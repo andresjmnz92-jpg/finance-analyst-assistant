@@ -49,6 +49,7 @@ CASOS = [
     ("opex_by_cost_centre", {"root": "6000", "quarter": "2"}),
     ("spend_comparison", {"root": "6200"}),
     ("largest_vendors", {}),
+    ("budget_variance", {}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -121,6 +122,19 @@ EMISORES = {
                       for n in t["all_notes"]),
     "spend with no vendor":
         lambda t: "unattributed" in (t["findings"] or {}),
+    # budget_variance: all four are findings keys the return publishes
+    # unconditionally - empty lists when the trap is not in the data, which is
+    # itself the declaration that it was looked for and not found.
+    "worst by value or by percent":
+        lambda t: "worst_by_value" in (t["findings"] or {})
+        and "worst_by_percent" in (t["findings"] or {}),
+    "two budget sets":
+        lambda t: "centres_with_two_sets" in (t["findings"] or {}),
+    "unconverted rows by centre":
+        lambda t: "excluded" in (t["findings"] or {})
+        and "sign_flipped_by_missing_rates" in (t["findings"] or {}),
+    "which sign flips because of them":
+        lambda t: "sign_flipped_by_missing_rates" in (t["findings"] or {}),
 }
 
 
