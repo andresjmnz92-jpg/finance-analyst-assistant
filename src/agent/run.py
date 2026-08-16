@@ -238,6 +238,7 @@ def opex_by_cost_centre(eje, root, year=None, quarter=2, date_field="accrual_dat
     This plan used to resolve once at the close of the quarter, which is only safe
     while no account leaves the rollup mid-period - and nothing was checking that.
     """
+    quarter = _cuarto(quarter)
     year, desde, hasta = _trimestre(eje, year, quarter, date_field)
     if year is None:
         return {"status": "REFUSED", "reason": f"no rows in Q{quarter} of that year"}
@@ -483,6 +484,7 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
     path rather than something the model steers.
     """
     top = int(top)
+    quarter = _cuarto(quarter)
     year, desde, hasta = _trimestre(eje, year, quarter, date_field)
     if year is None:
         return {"status": "REFUSED", "reason": f"no rows in Q{quarter} of any year"}
