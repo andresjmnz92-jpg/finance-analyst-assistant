@@ -139,7 +139,7 @@ by 90%, and a ceiling that cannot see the spend is not a ceiling.
 | The figures are right | Every plan checked field by field against `evals/fixtures/EXPECTED.md`, written by hand before the code |
 | Nothing is hardcoded to Meridian | The same loader and the same plans run over both datasets; `python -m evals.no_borrowed_facts` fails if a tool's note mentions anything only Meridian has |
 | The guards still fire | `python -m evals.guards` reproduces each fixed defect on a mutated copy of the fixture, and each was verified in the failing direction |
-| The router picks correctly | 8 of 8 questions to the right plan, with the right account code each time |
+| The router picks correctly | Measured by hand during development, two live sweeps of the eight questions; not automated here, because routing needs a model and the eval suites run without one |
 | The answers declare what they must | **Automated in `evals/eight.py`.** First graded by an independent reviewer — two of five failed and the three causes were fixed. Now every `must_declare` entry has a named emitter, and the runner fails if its evidence is missing from the trace |
 
 The honest remainder of that row: the trace is checked mechanically, the paragraph is not — prose
