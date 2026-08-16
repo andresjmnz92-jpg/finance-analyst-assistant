@@ -76,7 +76,7 @@ class Trace:
         self.steps.append({
             "n": len(self.steps) + 1,
             "tool": tool,
-            "args": {k: v for k, v in args.items() if k != "con"},
+            "args": {k: _argumento(v) for k, v in args.items() if k != "con"},
             "summary": _resumir(resultado),
             "notes": list(output.get("notes", [])),
             "sql": [{"statement": s, "params": list(p)} for s, p in output.get("sql", [])],
@@ -189,6 +189,24 @@ def _marca(nota):
     """
     palabras = nota[:40].split()
     return "  ->!" if any(len(w) >= 3 and w.isalpha() and w.isupper() for w in palabras) else "note"
+
+def _argumento(v, tope=300):
+    """An argument, unless it is a payload rather than an argument.
+
+    This module's own docstring says a trace holding 1,348 rows is not legible to
+    anyone, and then stored exactly that: convert_currency is CALLED with every
+    grouped row, so the saved trace for the vendor question came to 522 KB - all
+    of it one argument. Legible on screen, because render() truncates; illegible
+    in the file that gets committed as evidence.
+
+    Short values are kept verbatim, because the difference between two runs lives
+    in the arguments. Anything past a few lines becomes its shape: what a reader
+    needs from `rows=[415 items]` is the 415, and the SQL beside it produces them.
+    """
+    if isinstance(v, (list, tuple, dict)) and len(json.dumps(v, default=str)) > tope:
+        return f"[{len(v)} item(s), not stored - see the SQL on the step that produced them]"
+    return v
+
 
 def _resumir(resultado):
     """A few lines about what a tool returned. Never the rows themselves."""

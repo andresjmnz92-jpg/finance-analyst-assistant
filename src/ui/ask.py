@@ -1,0 +1,103 @@
+"""Ask the assistant a question.
+
+    python -m src.ui.ask "What did we spend on operating expenses in Q2, by cost center?"
+    python -m src.ui.ask "Did we pay anyone twice?" --db fixtures.db --save
+    python -m src.ui.ask --plan cost_per_fte root=6100        # no model at all
+
+WHAT IT PRINTS, AND WHY IT PRINTS ALL OF IT
+The brief asks for an interface that "must show the work, not just the
+conclusion", so this prints the trace: every tool call with its arguments, the
+SQL that produced each figure, every caveat beside the step that raised it, what
+the model cost, and only then the answer. A reader who disagrees with a number
+can re-run the statement that made it without asking anyone.
+
+THREE WAYS TO RUN, AND THE MIDDLE ONE IS THE POINT
+
+    --plan <name>     runs a plan by name with NO model. Every figure in this
+                      repository can be produced this way, which is what "real
+                      computation, testable without the model" means.
+    (a question)      the model reads the question, names a plan and fills its
+                      parameters; the code validates both and runs it; the model
+                      then writes one paragraph over figures it did not compute.
+    --no-writer       routes and runs, then prints the figures without prose.
+
+CREDENTIALS ARE YOURS
+MODEL_API_KEY comes from the environment or a .env that is not in this
+repository. --model and --base-url override MODEL_NAME and MODEL_BASE_URL, so
+switching provider needs no file edited: everything speaks the OpenAI-compatible
+protocol, with the caveats measured in NOTES.md.
+"""
+
+import argparse
+import os
+import sqlite3
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from src.agent.model import Budget, cargar_env                    # noqa: E402
+from src.agent.router import anotar, elegir                       # noqa: E402
+from src.agent.run import RUTINAS, run                            # noqa: E402
+from src.agent.writer import redactar                             # noqa: E402
+
+RAIZ = Path(__file__).resolve().parent.parent.parent
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="python -m src.ui.ask", description=__doc__.split("\n")[0])
+    p.add_argument("question", nargs="*", help="the question, in plain English")
+    p.add_argument("--plan", help=f"run a plan by name with no model: {', '.join(RUTINAS)}")
+    p.add_argument("--param", action="append", default=[], metavar="k=v",
+                   help="parameter for --plan; repeatable")
+    p.add_argument("--db", default="data.db", help="database file (default: data.db)")
+    p.add_argument("--no-writer", action="store_true", help="figures only, no prose")
+    p.add_argument("--save", action="store_true", help="write the trace to traces/")
+    p.add_argument("--model", help="overrides MODEL_NAME")
+    p.add_argument("--base-url", help="overrides MODEL_BASE_URL")
+    a = p.parse_args(argv)
+
+    pregunta = " ".join(a.question).strip()
+    if not pregunta and not a.plan:
+        p.error("give a question, or --plan <name>")
+
+    cargar_env()
+    if a.model:
+        os.environ["MODEL_NAME"] = a.model
+    if a.base_url:
+        os.environ["MODEL_BASE_URL"] = a.base_url
+
+    db = Path(a.db) if Path(a.db).is_absolute() else RAIZ / a.db
+    if not db.exists():
+        sys.exit(f"{db.name} not found. Build it first:  python -m src.load")
+    con = sqlite3.connect(db)
+    presupuesto = Budget()
+
+    if a.plan:
+        if a.plan not in RUTINAS:
+            sys.exit(f"'{a.plan}' is not a plan. Available: {', '.join(RUTINAS)}")
+        # Todo llega como texto y se queda como texto: convertir '6000' a entero
+        # lo hace dejar de casar contra una columna TEXT, cero filas y ni un aviso.
+        params = dict(x.split("=", 1) for x in a.param if "=" in x)
+        trace = run(a.plan, con, dataset=db.name, **params)
+    else:
+        eleccion = elegir(pregunta, con, presupuesto, RUTINAS)
+        if not eleccion["plan"]:
+            print(f'question:  "{pregunta}"\n\nNO PLAN\n  {eleccion["why"]}')
+            return 1
+        trace = run(eleccion["plan"], con, dataset=db.name, **eleccion["params"])
+        trace.question = pregunta
+        anotar(trace, eleccion)
+
+    if not a.no_writer:
+        redactar(trace, presupuesto)
+
+    print(trace.render())
+    if a.save:
+        print(f"\ntrace written to {trace.save(RAIZ / 'traces')}")
+    con.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
