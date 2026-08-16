@@ -45,16 +45,46 @@ DATASETS = ["data.db", "fixtures.db"]
 
 LEGALES = {"COMPLETE", "PARTIAL", "REFUSED"}
 
+# The only two statuses stored in advance, because they are structural, not
+# data: cost_per_fte refuses on the SCHEMA - no loaded table holds a headcount
+# column, and the brief guarantees the second dataset has the same columns -
+# and duplicate_payments never touches FX, so it has no PARTIAL to fall into.
+# The other six compute their status from the data and are judged by coherence.
+ESTRUCTURALES = {"cost_per_fte": "REFUSED", "duplicate_payments": "COMPLETE"}
+
 
 def comprobar(nombre, trace, fallos):
     """Every machine-checkable expectation for one finished run.
 
-    The invariants land here piece by piece; today it holds the one contract
-    that is true on any dataset: a run ends in exactly one of three states.
+    The load-bearing rule: status must be COHERENT with the evidence the same
+    run published. Six plans decide PARTIAL or COMPLETE from whether FX left
+    rows unconverted, and they publish those rows as findings["excluded"] - so
+    a COMPLETE with exclusions, or a PARTIAL naming nothing, is a lie whichever
+    dataset produced it. That is the check that survives Keyrus's dataset:
+    against a full FX grid, COMPLETE is correct and this suite agrees.
     """
-    if trace["status"] not in LEGALES:
-        fallos.append(f"{trace['dataset']}/{nombre}: status {trace['status']!r} "
-                      f"is not one of {sorted(LEGALES)}")
+    status = trace["status"]
+    f = trace["findings"] or {}
+    donde = f"{trace['dataset']}/{nombre}"
+
+    if status not in LEGALES:
+        fallos.append(f"{donde}: status {status!r} is not one of {sorted(LEGALES)}")
+        return
+    if nombre in ESTRUCTURALES and status != ESTRUCTURALES[nombre]:
+        fallos.append(f"{donde}: {status}, but {ESTRUCTURALES[nombre]} is structural "
+                      f"for this plan on any dataset with these columns")
+    if status == "REFUSED":
+        if not f.get("reason"):
+            fallos.append(f"{donde}: refused without naming a reason - a silent "
+                          f"refusal is as unanswerable as a silent total")
+        return
+    excluido = f.get("excluded")
+    if status == "COMPLETE" and excluido:
+        fallos.append(f"{donde}: says COMPLETE while {len(excluido)} group(s) "
+                      f"were left unconverted in its own findings")
+    if status == "PARTIAL" and not excluido:
+        fallos.append(f"{donde}: says PARTIAL but its findings name nothing "
+                      f"that is missing")
 
 
 def main():
