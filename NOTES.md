@@ -12,16 +12,26 @@ in `ARCHITECTURE.md` fell out of that document rather than being designed up fro
 That order mattered more than any prompt. Deciding what the answer should be, before knowing what
 the code would return, is the only reason several wrong answers were caught at all.
 
-Four decisions here are mine and were argued for against a different suggestion:
+Three decisions set the shape before anything was built: **attack it backwards** — write the eight
+expected answers first and derive the tools from them, which is why there is no `run_anything` tool;
+**do not open the data until the problem is understood**, because you end this brief with *"we'll ask
+you to walk through what you built"*; and **build a second dataset whose answers I already know**.
 
-- **Attack the exercise backwards.** Write the eight expected answers first, derive the tools from
-  them. It is why there is no `run_anything` tool — there was nowhere for one to come from.
-- **Do not look at the data until the problem is understood.** You end this brief with *"we'll ask
-  you to walk through what you built"*. A repository I cannot explain loses the conversation that
-  decides.
-- **Build a second dataset whose answers I already know.** More on that below.
-- **Show both vendor rankings rather than one.** You ask for an interface that "must show the work,
-  not just the conclusion", and in that question the decision *is* the answer.
+Then, repeatedly, I overruled the model's design and the measurement said I was right to. These are
+the ones that changed the code:
+
+| I pushed back with | What it was worth, measured |
+| --- | --- |
+| *Let the model translate the question into accounts, not a string rule* | **"headcount" matches zero accounts** in this chart — they are called Personnel and Salaries & Wages. A text rule goes mute on question 7. And picking the wrong rollup is not an error, it is a plausible figure: root 6830 answers **91,015.92** where the answer is **12,780,721.78** |
+| *Then why not just hardcode the code?* | Forced the line I now work by: **shape is assumed, values are not**. The five tables and `rate_to_usd` are shape; an account code is a value, and your brief says the values change |
+| *Showing the work sounds like two tables, not one* | Your own criterion, and it holds: Nordwind is the largest vendor grouped and **does not reach the top ten split**, at number 15. The ranking is a decision, so both are printed |
+| *You are being too strict* | The figure guard was **deleting correct answers** over a truncated number, a correct sign and the numerals in a bulleted list. A guard that is wrong is worse than no guard: it now annotates instead of removing |
+| *Is that a data problem or an obedience problem?* | Deleted two of the writer's three rules. Both were patching data, and the paragraphs came out equivalent without them |
+| *Test it on a paid model too, not just the free one* | Found that **"OpenAI-compatible" is not one protocol** — and that a claim already published in this file was false |
+| *What if we narrowed it first instead of reading every memo?* | The bound is provable and **saves 13%**, measured, so it was not built. The intersection that matters is one line, not a stage |
+
+The pattern is the same every time: the model's instinct was defensible and the measurement decided
+it. That is the working relationship, not a prompt.
 
 ## Something that worked well
 
@@ -63,7 +73,6 @@ Three smaller ones, each invisible until something specific was measured:
 | What was wrong | How it surfaced |
 | --- | --- |
 | `convert_currency` reported *"1 row worth 1,231,309 EUR could not be converted"*. The amount was right; the count was 147 | Calling the same tool two ways and comparing |
-| A vendor rule grouped three of Nordwind's four spellings; fixed; a second rule grouped three of four again, because `B.V.` became `B V` | A group total not matching the sum of its parts, then counting members |
 | The first live model call returned HTTP 200 and an empty string | `finish_reason: length`. Reasoning tokens count against `max_tokens` and appear in neither `prompt_tokens` nor `completion_tokens` — my ceiling saw 9 where the provider counted 106 |
 
 **And at the end, the answers themselves were graded by someone other than me. Two of five failed** —
@@ -73,21 +82,24 @@ of spend having no vendor at all was a number nobody said out loud. Both are now
 
 ## The thing I had to correct repeatedly, and what stopped it
 
-**Asserting things I had not measured.** Not once — I can count them, because they are all in this
-history:
+**Stating a measurement it had not taken.** Every one of these was written into this repository as
+fact, and every one is about the data or about the system — not about prose:
 
 ```
-"about ten hours"          the measured figure was 5.9
-two weekday names          Thursday and Friday; they were Friday and Saturday
-"the fourth largest"       Nordwind is the largest. That docstring had recorded the figure
-                           produced by the bug it describes, and outlived the fix
-"216 of 228 pairs differ"  228 of 228 differ - and the same docstring said so correctly two
-                           sentences earlier
-"the eval runner asserts"  there is no eval runner
+"the fourth largest"        Nordwind is the LARGEST. That docstring had recorded the figure
+                            produced by the bug it describes, and outlived the fix
+"216 of 228 pairs differ"   228 of 228 differ, and the same docstring said so correctly two
+                            sentences earlier
+"resolved window by window" the plan printed that sentence while querying the whole period
+                            with the union of every window - caught by the fixture, five
+                            candidates against six
+"the eval runner asserts"   there is no eval runner
+several tools' notes        Meridian's own row counts and date ranges, stated as fact, in
+                            text that travels into the answer against any dataset
 ```
 
-Every one reads well and was never checked. Prompting did not fix it, because it is not
-disobedience — it is the shape of writing.
+Every one reads well and none was checked. Prompting did not fix it, because it is not disobedience
+— a sentence that sounds measured costs nothing to write.
 
 **What fixed it was making the rule structural.**
 
@@ -130,21 +142,18 @@ routes the same way twice — and that model does not offer it. `ask()` adapts t
 the adjustment on the answer**, because a run that could not be deterministic must not look like one
 that was.
 
-**Would a stronger model do better? Probably, in one place, and I would measure it rather than assume
-it.** Its job is to read a question, pick a plan and write a paragraph; it cannot improve a single
-number, because the arithmetic never touches it. The honest experiment compares **which caveats each
-model dropped**, not which totals differ — the totals cannot differ.
+A stronger model cannot improve a single figure here, because the arithmetic never touches it. The
+honest comparison is **which caveats each one dropped**, not which totals differ.
 
 ## What I cut
 
 - **No web interface.** The brief allows either; a UI would eat hours you are not evaluating.
 - **No retrieval over the documents.** Four files, under 6 KB, read whole. Chunking would add an
-  embedding model, a store and a threshold so the paragraph that answers the question can rank fourth
-  and never arrive. Not hypothetical: a line-based search for the sentence deciding the FTE question
-  returned nothing, because it spans a line break.
-- **No database beyond the local file**, which is also your rule. No performance argument either —
-  grouping all 10,916 rows takes 4 ms.
-- **No dependencies at all.** Clone it, run it with Python 3.12.
+  embedding model, a store and a threshold so the paragraph that answers the question ranks fourth
+  and never arrives — and that is not hypothetical: a line-based search for the sentence deciding
+  the FTE question returned nothing, because it spans a line break.
+- **No database beyond the local file**, which is also your rule. No performance argument either:
+  grouping all 10,916 rows takes 4 ms. **No dependencies at all** — clone it, run it with 3.12.
 - **The nightly-rate policy rule, after measuring it.** It is checkable from the free-text memo, 100%
   of Meridian's hotel memos parse, and it finds 7 breaches — but a memo format is a property of one
   file, and the approval rule answers the question from columns that exist.
