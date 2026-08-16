@@ -40,6 +40,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 # like the CLI: '6000' as an integer stops matching a TEXT column.
 CASOS = [
     ("cost_per_fte", {"root": "6100"}),
+    ("duplicate_payments", {}),
 ]
 
 DATASETS = ["data.db", "fixtures.db"]
@@ -66,6 +67,15 @@ EMISORES = {
         and not t["findings"]["denominator_columns_found"],
     "the source that says so":
         lambda t: (t["findings"] or {}).get("what_the_documents_say"),
+    # duplicate_payments: anchored on notes the TOOL emits unconditionally
+    # (duplicates.py), the same way guards.py anchors on 'Negative amounts'.
+    # Code-emitted strings are stable; the writer's prose is not.
+    "the matching criterion":
+        lambda t: any(n.startswith("Grouped on") for n in t["all_notes"]),
+    "that these are candidates":
+        lambda t: any("These are CANDIDATES" in n for n in t["all_notes"]),
+    "recurring charges look identical":
+        lambda t: any("can be indistinguishable" in n for n in t["all_notes"]),
 }
 
 
