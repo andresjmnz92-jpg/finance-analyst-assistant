@@ -151,7 +151,7 @@ own, and nobody should discover that by accident.
 | ✅ Three eval commands | `eight`, `no_borrowed_facts` and `guards` |
 | ✅ A runner over the eight questions | `python -m evals.eight`: 16 runs, statuses judged by coherence with their own evidence, all 26 `must_declare` entries backed by a named emitter |
 | ✅ The expected behaviour for Meridian's eight | [`evals/EXPECTED_MERIDIAN.md`](evals/EXPECTED_MERIDIAN.md): what each answer must state, must do and must not do — **no expected figures**, because Meridian is judged by behaviour. Every entry is an entry in `must_declare` |
-| ⬜ Traces for all eight | Two committed so far |
+| ✅ Traces for all eight | One per question under [`traces/`](traces/), each from the English question. Two COMPLETE, five PARTIAL, one REFUSED — and the refusal costs one model call, not two |
 
 ## Known limitations
 

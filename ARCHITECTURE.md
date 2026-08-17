@@ -133,9 +133,11 @@ always `0.00` and the comparison against USD 0.50 can never be true. It is a cei
 the spend, which is the exact failure the next paragraph says a ceiling must not have. Named here
 rather than left standing, because a reported zero reads as measured.
 
-The only cost evidence committed is the two traces: `consolidated_spend` at **2 calls and 2,835
-tokens**, `largest_vendors` at **2 calls and 4,289 tokens**. Neither records **which model produced
-them**, which is the second half of the same gap — a token count without a model name cannot be
+The cost evidence is the eight traces under [`traces/`](traces/), one per question, each from the
+English question rather than a plan name. **36,359 tokens for all eight**, from **1,239** to
+**9,757** — the smallest is `cost_per_fte`, which refuses after routing and never reaches the
+writer, so a refusal costs one call instead of two. None of them records **which model produced
+them**, which is the second half of the same gap: a token count without a model name cannot be
 turned into money either. An earlier figure of 9,000–10,000 tokens for `gpt-5-mini` appeared here
 and is not reproducible from anything committed, so it is withdrawn.
 
