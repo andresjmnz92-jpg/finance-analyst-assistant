@@ -203,6 +203,21 @@ honest comparison is **which caveats each one dropped**, not which totals differ
 - **The nightly-rate policy rule, after measuring it.** It is checkable from the free-text memo, 100%
   of Meridian's hotel memos parse, and it finds 7 breaches — but a memo format is a property of one
   file, and the approval rule answers the question from columns that exist.
+- **Translating the local variables.** Everything you read is in English — documents, comments,
+  docstrings, commit messages — and so is every identifier that crosses from one module to another;
+  those six were renamed once it was clear a reviewer meets them in a traceback. Inside the
+  functions, the working variables are still in Spanish, because that is the language I thought the
+  problem in and the rename never reached them.
+
+  **The reason it stopped there is the reason the rest of this file keeps circling.** Nothing in
+  `evals/` checks that a figure is correct — measured, not assumed: a reviewer inflated every
+  cost-centre total by 1% and all three suites stayed green. So a sweep across twelve files buys
+  consistency and risks moving a number with nothing to catch it. The six that cross modules were
+  safe to do because a missed one breaks an import loudly and the output diff over all eight plans
+  came back empty, character for character. A hundred local renames have no such floor.
+
+  With two more days it goes with the first item below: build the check that makes a figure change
+  fail, then rename freely underneath it.
 
 ## Roughly how long
 
@@ -232,14 +247,21 @@ only part that could not have been recovered later.
 
 ## What I would do with two more days
 
-1. **Judging the paragraph, not just the trace.** The runner over the eight has since been built
+1. **A check that fails when a figure moves.** This is the gap under most of the others. `eight.py`
+   judges coherence and `guards.py` reproduces fixed defects, but nothing asserts an amount, and
+   `EXPECTED.md` — the file that holds Tessera's hand-computed answers — is read by no code at all.
+   Measured, not assumed: a reviewer inflated every cost-centre total by 1% and all three suites
+   stayed green; another moved a quarter-end date by one day, took 31,267 USD off the consolidated
+   total, and they stayed green again. Wiring `EXPECTED.md` into the runner for the fixture only
+   would close it, and Meridian would stay behaviour-judged for the reason the whole file gives.
+2. **Judging the paragraph, not just the trace.** The runner over the eight has since been built
    (`evals/eight.py`): statuses judged by coherence with their own published evidence, every
    `must_declare` entry backed by a named emitter — and building it caught one more fixed-string
    claim, listed above. What still nobody checks by command is the written paragraph itself:
    whether the prose carries what the trace proved.
-2. **Real cost accounting.** The ceiling reports $0.00 because nothing supplies prices. On a free
+3. **Real cost accounting.** The ceiling reports $0.00 because nothing supplies prices. On a free
    tier that is true and still wrong: a reported zero reads as measured.
-3. **Read documents in any format.** Only `.md` is seen today, so a `.txt` policy would make the
+4. **Read documents in any format.** Only `.md` is seen today, so a `.txt` policy would make the
    assistant refuse for lack of a document sitting in the folder.
-4. **A third dataset I did not build.** Both of mine are ones I understand. The interesting failures
+5. **A third dataset I did not build.** Both of mine are ones I understand. The interesting failures
    are in the one I do not.
