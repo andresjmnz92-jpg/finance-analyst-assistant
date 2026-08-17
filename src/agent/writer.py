@@ -60,6 +60,12 @@ from src.agent.plans import PLANS
 # trailing zeros, so that 1,231,309.12 and 1231309.120 are the same number.
 NUMERO = re.compile(r"-?\d[\d,]*(?:\.\d+)?")
 
+# What turns a bare integer into a claim about money. Checked immediately after the
+# number, so "847 USD" and "12%" are figures while "5) Ridgeline" and "3 currencies"
+# are not. Currency codes are matched generically rather than listed, because the
+# next dataset will carry its own.
+UNIDAD = re.compile(r"\s?(?:%|[A-Z]{3}\b)")
+
 # ONE RULE, AND THE OTHER TWO WERE MEASURED AND REMOVED.
 #
 # This prompt held seven rules, then three. Two of the three existed to stop
@@ -119,9 +125,17 @@ def _fabricados(texto, permitidos):
 
     So: a figure is a fabrication when nothing measured is within one unit of its
     last written digit. Rounding stays allowed, invention does not.
+
+    WHAT STILL GETS THROUGH, MEASURED RATHER THAN GUESSED
+    A small bare integer with no unit after it: "a limit of 75 per day" is not
+    flagged, because nothing separates it from "5) Ridgeline" without reading the
+    sentence. Catching it needs meaning, not a pattern, and widening the pattern
+    walks straight back into deleting correct answers. Named here instead of
+    closed, which is the same trade this guard is built on.
     """
     malos = set()
-    for bruto in NUMERO.findall(texto):
+    for encontrado in NUMERO.finditer(texto):
+        bruto = encontrado.group()
         limpio = bruto.replace(",", "")
         try:
             valor = float(limpio)
@@ -131,8 +145,15 @@ def _fabricados(texto, permitidos):
         # bullet: the guard flagged 5.00 and 8.00 out of "5) Ridgeline, 8) ..." as
         # invented. Third false positive of the same family, and the damage this guard
         # exists to prevent is an invented amount of money, not an ordinal.
+        #
+        # UNLESS it is wearing a unit. Skipping every bare integer under 1000 was too
+        # wide a hole: "Cost per FTE was 847 USD" passed unflagged, in the repository
+        # whose headline plan refuses to produce a cost per FTE. An ordinal is never
+        # followed by a currency or a percent sign, so the marker separates the two
+        # without bringing the false positive back.
         if "." not in bruto and "," not in bruto and abs(valor) < 1000:
-            continue
+            if not UNIDAD.match(texto[encontrado.end():]):
+                continue
         decimales = len(limpio.split(".")[1]) if "." in limpio else 0
         tolerancia = 10.0 ** -decimales
         # And in ABSOLUTE VALUE. The measured finding is -204,257.95 and the model
