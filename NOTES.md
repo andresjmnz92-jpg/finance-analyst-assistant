@@ -77,12 +77,55 @@ Three smaller ones, each invisible until something specific was measured:
 
 Those twenty were one review; a second one that afternoon — three agents rather than me, because
 my own verification had found none of the twenty — turned up six different ones, each re-measured
-here before it was accepted, and those six are what `evals/guards.py` exists for.
+here before it was accepted. **Four of those six have a guard in `evals/guards.py`; two do not.**
+I wrote "each case is reproduced here" in that file's docstring while shipping four, which is the
+same class of claim this whole section is about, and I only found it by counting.
 
 **And at the end, the answers themselves were graded by someone other than me. Two of five failed** —
 not on a figure, but because content the code had already computed sat in the findings as a raw key
 and never reached a sentence. The vendor ranking existed only inside the model's paragraph, and 46%
 of spend having no vendor at all was a number nobody said out loud. Both are now printed by code.
+
+### The review that found the wrong numbers: four readers who could not see each other
+
+The reviews above were sequential, and each one inherited what the last had concluded. The final
+one was not. **Four agents read the repository at the same time, none of them shown the others'
+findings**, each given a different lens: one reading it as your reviewer would, one auditing the
+diffs, one hunting for figures that are wrong while looking right, one checking every claim the
+documents and docstrings make about the code.
+
+Blind and parallel buys one thing sequential does not: **when two of them report the same defect
+independently, the agreement means something.** Five defects were found twice that way, including a
+README row asserting every figure was checked against a file that holds figures for one of the two
+datasets — and contradicting itself six lines below.
+
+But the expensive findings came from the one nobody else duplicated, the reader comparing figures
+against the data:
+
+- **A cost centre was renamed mid-2024** — your own board memo says so — and nothing mapped the two
+  codes. In Q1 and Q2 the centre with the largest overspend in the quarter was **dropped from the
+  answer entirely** for having no budget line, while the code that inherited its budget was
+  published at **−100%, "spent nothing"**, having spent 716,962.62.
+- **The by-centre answer was ordered wrong at every rate on file**, because rows with no FX rate
+  were totalled into an aggregate and never attributed to a centre — in the one question that asks
+  *by cost centre*.
+- **A year compared against itself was counted twice**, and a year with no rows read as a 100% fall
+  instead of a refusal.
+
+None of the three raise an error. All three print cleanly.
+
+**And then the fix for the first one was killed before it was written.** I designed it as "read the
+memo, map the codes", handed the design to a fresh agent to attack rather than to implement, and it
+came back with the design measured rather than argued with: the suites run `budget_variance` on Q3,
+Q3 has no orphaned centres, so the whole branch would have shipped untested — the exact thing
+`guards.py` exists to forbid. It also fabricated a case where a centre that closed and a centre that
+opened produce the same signature as a rename, which is why nothing here maps the codes. The plan
+now prints both sides and lets the analyst do the mapping, which is what the memo asks the analyst
+to do.
+
+The lesson I did not have before: **executing coldly and reviewing coldly are two different valves.**
+A fresh agent executes a bad design perfectly. Attacking the design costs one more agent and is the
+one I nearly skipped.
 
 ## The thing I had to correct repeatedly, and what stopped it
 
