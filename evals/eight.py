@@ -122,6 +122,9 @@ EMISORES = {
     # chart changed mid-period - one window is also a declaration.
     "account validity windows":
         lambda t: "windows" in (t["findings"] or {}),
+    "what the unconverted rows do to the difference":
+        lambda t: "difference_bounded" in (t["findings"] or {})
+        and "direction_holds" in (t["findings"] or {}),
     # largest_vendors. Publishing BOTH rankings is the grouping declaration;
     # catch-alls ride the step summary, because the tool returns the
     # catch_all_vendors key unconditionally - empty is also an answer - while

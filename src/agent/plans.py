@@ -55,7 +55,11 @@ PLANS = {
         # plan: resolving once for the whole year counts marketing spend as travel, or
         # loses travel spend, depending on which date is picked.
         "must_declare": ["account validity windows", "which date field defines the period",
-                         "which account the phrase resolved to"],
+                         "which account the phrase resolved to",
+                         # A year missing an FX rate against a complete one: the
+                         # difference is a range, and whether its sign survives that
+                         # range is the answer, not the figure.
+                         "what the unconverted rows do to the difference"],
         "model_decides": ["which account code the phrase 'travel' means"],
     },
     "consolidated_spend": {

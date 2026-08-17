@@ -365,12 +365,77 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
         total[f["period_month"][:4]] = round(total[f["period_month"][:4]] + f["amount"], 2)
 
     diferencia = round(total[year_b] - total[year_a], 2)
+
+    # A COMPLETE YEAR MINUS AN INCOMPLETE ONE IS A RANGE, NOT A FIGURE.
+    # The gap does not fall evenly: rows with no rate sit in one year, so subtracting
+    # the converted totals compares different magnitudes and publishes the result to the
+    # cent. budget_variance already solved this per centre - the lowest rate on file is a
+    # floor on what is missing - and the same bound is enough here to say whether the
+    # direction of the comparison survives. Bounded rather than corrected: the rate that
+    # is missing stays missing.
+    minimo = {m: r[0] for m, r in fx["rate_range"].items()}
+    maximo = {m: r[1] for m, r in fx["rate_range"].items()}
+    faltante = {a: {} for a in (year_a, year_b)}
+    for h in fx["unconverted"]:
+        anio = h["period_month"][:4]
+        if anio in faltante:
+            faltante[anio][h["currency"]] = round(
+                faltante[anio].get(h["currency"], 0.0) + h["amount"], 2)
+    # A currency that appears in no rate at all has no bound, and that is said rather
+    # than counted as zero - zero reads as "nothing is missing".
+    sin_cota = sorted({m for f in faltante.values() for m in f if m not in minimo})
+
+    def _cota(anio, tasas):
+        return round(sum(imp * tasas[mon] for mon, imp in faltante[anio].items()
+                         if mon in tasas), 2)
+
+    piso = {a: _cota(a, minimo) for a in (year_a, year_b)}
+    techo = {a: _cota(a, maximo) for a in (year_a, year_b)}
+    dif_min = round((total[year_b] + piso[year_b]) - (total[year_a] + techo[year_a]), 2)
+    dif_max = round((total[year_b] + techo[year_b]) - (total[year_a] + piso[year_a]), 2)
+
+    def _pct(dif, base):
+        return round(dif / base * 100, 1) if base else None
+
+    pct = [_pct(dif_min, total[year_a] + techo[year_a]),
+           _pct(dif_max, total[year_a] + piso[year_a])]
+    pct = sorted(pct) if None not in pct else [None, None]
+    # Same test budget_variance applies to a deviation: if the bound does not change the
+    # sign, the conclusion holds however the missing rows convert.
+    aguanta = (dif_min > 0) == (dif_max > 0) and (dif_min < 0) == (dif_max < 0)
+
+    if any(faltante.values()):
+        detalle = "; ".join(
+            f"{a} is missing " + ", ".join(f"{imp:,.2f} {mon}" for mon, imp in sorted(f.items()))
+            for a, f in faltante.items() if f)
+        eje.trace.decision(
+            f"This is a complete year against an incomplete one: {detalle}, with no rate on "
+            f"file. The difference printed from the converted rows alone is "
+            f"{diferencia:,.2f} USD; at the rate range this file does carry it is "
+            f"{dif_min:,.2f} to {dif_max:,.2f} USD"
+            + (f" ({pct[0]:+.1f}% to {pct[1]:+.1f}%)" if pct[0] is not None else "")
+            + ". "
+            + ("The direction holds across that whole range, so the conclusion survives the "
+               "missing rows even though the figure does not."
+               if aguanta else
+               "The direction REVERSES inside that range, so which year is higher is not "
+               "known from this file.")
+            + (f" {', '.join(sin_cota)} appears in no rate at all, so part of what is missing "
+               f"has no bound." if sin_cota else ""))
+
     return {
         "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
         "root": root, "currency": fx["currency"],
         year_a: total[year_a], year_b: total[year_b],
         "difference": diferencia,
         "percent": round(diferencia / total[year_a] * 100, 1) if total[year_a] else None,
+        # Published whether or not anything is missing: with a full rate grid the bounds
+        # collapse onto the figure, and that is the statement that they were computed.
+        "difference_bounded": [dif_min, dif_max],
+        "percent_bounded": pct,
+        "not_converted_by_year": {a: f for a, f in faltante.items() if f},
+        "no_rate_at_all_for": sin_cota,
+        "direction_holds": aguanta,
         "windows": cortes,
         "ledger_rows": {a: sum(f["rows"] for f in filas) for a, filas in por_anio.items()},
         "excluded": fx["unconverted"],
