@@ -14,16 +14,19 @@ here by mutating a COPY of the fixture: a budget line set to zero, a ledger row
 in a currency that has no rate at all, a year nobody has data for. The copy is
 temporary and the fixture on disk is never touched.
 
-FOUR OF THE SIX, NOT SIX. COMPROBACIONES below holds four checks and the command
-prints "4 guard(s) exercised". Two of the six defects have no guard here, and
-saying "each case is reproduced" while shipping four is the same class of claim
-this file exists to stop. Counted, not remembered.
+FOUR OF THOSE SIX, NOT SIX. Two of them have no guard here, and saying "each case
+is reproduced" while shipping four is the same class of claim this file exists to
+stop. Counted, not remembered.
+
+The fifth check below is not one of the six. It is from a later round and it
+covers a defect of a different kind: a trace that could not be written at all.
 
 The other half of the reason: asked how the earlier fixes had been verified, the
 honest answer was that the edge cases were written after the fix, checked once in
 a terminal, and lost. A check that ran once is a claim, not a test.
 """
 
+import json
 import shutil
 import sqlite3
 import sys
@@ -126,7 +129,33 @@ def creditos_por_moneda(fallos):
     con.close()
 
 
-COMPROBACIONES = [ano_inexistente, presupuesto_en_cero, moneda_sin_tasa, creditos_por_moneda]
+def trace_serializable_y_sin_ruta(fallos):
+    """A trace must survive json.dumps, and must not carry the author's path.
+
+    Both halves failed at once and only for the two plans that read documents.
+    read_document is CALLED with datos_dir, a Path, and _argumento kept arguments
+    verbatim - so json.dumps raised TypeError and `--save` wrote nothing. The two
+    plans that never had a committed trace are exactly those two, which is what
+    the absence was saying all along.
+
+    And that Path is absolute. Publishing the folder name in `source` was half
+    the job: the same string was sitting in every read_document step.
+    """
+    con = sqlite3.connect(_copia("fixtures.db"))
+    for plan in ("cost_per_fte", "policy_breaches"):
+        t = run(plan, con, dataset="guards.db", root="6100" if plan == "cost_per_fte" else "6200")
+        try:
+            texto = json.dumps(t.as_dict())
+        except TypeError as e:
+            fallos.append(f"{plan}: the trace cannot be saved at all - {e}")
+            continue
+        if str(RAIZ) in texto:
+            fallos.append(f"{plan}: the trace carries the absolute path of the machine it ran on")
+    con.close()
+
+
+COMPROBACIONES = [ano_inexistente, presupuesto_en_cero, moneda_sin_tasa, creditos_por_moneda,
+                  trace_serializable_y_sin_ruta]
 
 
 def main():

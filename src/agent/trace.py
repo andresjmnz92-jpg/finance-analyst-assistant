@@ -215,7 +215,16 @@ def _argumento(v, tope=300):
     Short values are kept verbatim, because the difference between two runs lives
     in the arguments. Anything past a few lines becomes its shape: what a reader
     needs from `rows=[415 items]` is the 415, and the SQL beside it produces them.
+
+    A Path is neither. It cannot be serialised at all, so a plan that passes one -
+    read_document takes the documents folder - produced a trace that raised
+    TypeError on save and wrote nothing. Which is why the only two plans that ever
+    had a committed trace were the two that read no documents. It is stored as the
+    folder name for the same reason `source` is: the absolute path names the
+    machine this ran on and travels into a public repository.
     """
+    if isinstance(v, Path):
+        return v.name
     if isinstance(v, (list, tuple, dict)) and len(json.dumps(v, default=str)) > tope:
         return f"[{len(v)} item(s), not stored - see the SQL on the step that produced them]"
     return v
