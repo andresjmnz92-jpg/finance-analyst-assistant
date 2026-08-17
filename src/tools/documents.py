@@ -56,8 +56,14 @@ def read_document(datos_dir, name=None):
 
     texto = ruta.read_text(encoding="utf-8")
     kb = len(texto.encode("utf-8")) / 1024
-    notas = [f"Read whole, {kb:.1f} KB. No chunking, no retrieval: with a pack this small "
-             f"the passage that answers a question cannot rank too low to arrive."]
+    # The size is a fact about THIS document; the reason is a property of the design
+    # and is identical every time. Kept as two notes so the reason collapses to one
+    # line once the trace deduplicates, instead of being restated per document - four
+    # copies of the same sentence in the block a reviewer reads for the caveats is
+    # how the caveats stop being read.
+    notas = [f"Read whole, {kb:.1f} KB.",
+             "No chunking, no retrieval: with a pack this small the passage that answers a "
+             "question cannot rank too low to arrive."]
     if kb > LIMITE_KB:
         notas.append(f"OVER {LIMITE_KB} KB. Read-whole was chosen for a pack of four short "
                      f"files. At this size that decision needs revisiting rather than "

@@ -7,10 +7,10 @@
     "ledger_rows": 10916
   },
   "status": "COMPLETE",
-  "answer": "For Q2 2024 (root 6000), operating expenses by cost centre were: OPS-EU $2,503,945.38; OPS-NA $2,096,018.97; ENG-EU $1,521,708.71; OPS-CA $1,512,779.22; ENG-US $1,254,870.59; SGA-EU $1,234,406.24; SGA-US $1,063,887.61; MKT-US $853,906.97; SGA-CA $739,198.09, totaling $12,780,721.78 USD.\n\nFIGURES\n  period: Q2 2024\n  root: 6000\n  windows:\n    1. from=2024-04-01, to=2024-06-30, accounts=24\n  by_cost_centre: OPS-EU=2,503,945.38, OPS-NA=2,096,018.97, ENG-EU=1,521,708.71, OPS-CA=1,512,779.22, ENG-US=1,254,870.59, SGA-EU=1,234,406.24, SGA-US=1,063,887.61, MKT-US=853,906.97, SGA-CA=739,198.09\n  by_cost_centre_bounds: \n  ranking_reliable: True\n  total: 12,780,721.78\n  currency: USD\n  ledger_rows: 1393\n  excluded: []\n\nWHAT THIS ANSWER DEPENDS ON\n  The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.\n  The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 'Q2'}. Reason given: User requested operating expenses by cost center for Q2, so I selected the Operating Expenses rollup (6000) and Q2..\n  Model compatibility: max_tokens renamed to max_completion_tokens.\n  Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.\n  1 account(s) have more than one validity window: 6230. This answer is correct for 2024-04-01 only. 6230 is inside this rollup, so a query spanning a period must resolve per transaction date, not once for the period.\n  Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.\n  Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.\n  fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month.",
+  "answer": "For Q2 2024, operating expenses by cost centre were: OPS-EU $2,503,945.38; OPS-NA $2,096,018.97; ENG-EU $1,521,708.71; OPS-CA $1,512,779.22; ENG-US $1,254,870.59; SGA-EU $1,234,406.24; SGA-US $1,063,887.61; MKT-US $853,906.97; and SGA-CA $739,198.09, for a total of $12,780,721.78 (USD).\n\nFIGURES\n  period: Q2 2024\n  root: 6000\n  windows:\n    1. from=2024-04-01, to=2024-06-30, accounts=24\n  by_cost_centre: OPS-EU=2,503,945.38, OPS-NA=2,096,018.97, ENG-EU=1,521,708.71, OPS-CA=1,512,779.22, ENG-US=1,254,870.59, SGA-EU=1,234,406.24, SGA-US=1,063,887.61, MKT-US=853,906.97, SGA-CA=739,198.09\n  by_cost_centre_bounds: \n  ranking_reliable: True\n  total: 12,780,721.78\n  currency: USD\n  ledger_rows: 1393\n  excluded: []\n\nWHAT THIS ANSWER DEPENDS ON\n  The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.\n  The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 2}. Reason given: User asked for operating expenses by cost center for Q2, so root is the Operating Expenses rollup (6000) and quarter is Q2; year was not specified so the default year will be used..\n  Model compatibility: max_tokens renamed to max_completion_tokens.\n  Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.\n  1 account(s) have more than one validity window: 6230. This answer is correct for 2024-04-01 only. 6230 is inside this rollup, so a query spanning a period must resolve per transaction date, not once for the period.\n  Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.\n  Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.\n  fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month.",
   "decisions": [
     "The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.",
-    "The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 'Q2'}. Reason given: User requested operating expenses by cost center for Q2, so I selected the Operating Expenses rollup (6000) and Q2..",
+    "The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 2}. Reason given: User asked for operating expenses by cost center for Q2, so root is the Operating Expenses rollup (6000) and quarter is Q2; year was not specified so the default year will be used..",
     "Model compatibility: max_tokens renamed to max_completion_tokens.",
     "Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic."
   ],
@@ -196,7 +196,7 @@
           ]
         }
       ],
-      "seconds": 0.013
+      "seconds": 0.014
     },
     {
       "n": 3,
@@ -227,13 +227,13 @@
   ],
   "model": {
     "calls": 2,
-    "tokens": 3034,
+    "tokens": 3188,
     "usd": 0.0
   },
-  "seconds": 6.82,
+  "seconds": 10.8,
   "all_notes": [
     "The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.",
-    "The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 'Q2'}. Reason given: User requested operating expenses by cost center for Q2, so I selected the Operating Expenses rollup (6000) and Q2..",
+    "The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 2}. Reason given: User asked for operating expenses by cost center for Q2, so root is the Operating Expenses rollup (6000) and quarter is Q2; year was not specified so the default year will be used..",
     "Model compatibility: max_tokens renamed to max_completion_tokens.",
     "Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.",
     "1 account(s) have more than one validity window: 6230. This answer is correct for 2024-04-01 only. 6230 is inside this rollup, so a query spanning a period must resolve per transaction date, not once for the period.",

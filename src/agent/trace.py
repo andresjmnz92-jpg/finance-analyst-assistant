@@ -126,7 +126,14 @@ class Trace:
             "decisions": self.decisions, "findings": self.findings,
             "steps": self.steps, "model": {**self.model, "usd": round(self.model["usd"], 6)},
             "seconds": round(time.time() - self.started, 2),
-            "all_notes": self.decisions + [n for s in self.steps for n in s["notes"]],
+            # Deduplicated, first occurrence wins, order preserved. A plan that resolves
+            # accounts once per validity window raises the same caveat once per window,
+            # and one that reads four documents raises the same design note four times:
+            # six of the fifteen lines under WHAT THIS ANSWER DEPENDS ON were repeats of
+            # another line in the same block. A reader who stops reading there stops at
+            # the caveats, which is the one place this system needs to be read.
+            "all_notes": list(dict.fromkeys(
+                self.decisions + [n for s in self.steps for n in s["notes"]])),
         }
 
     def save(self, carpeta="traces", nombre=None):

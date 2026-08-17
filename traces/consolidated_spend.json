@@ -7,11 +7,10 @@
     "ledger_rows": 10916
   },
   "status": "PARTIAL",
-  "answer": "Total consolidated spend for Q3 2024 was USD 10,003,879.96.\n\nFIGURES\n  period: Q3 2024\n  other_years: \n  total: 10,003,879.96\n  currency: USD\n  ledger_rows: 1348\n  rows_converted: 1201\n  excluded:\n    1. period_month=2024-09, currency=EUR, amount=1,231,309.12, rows=147, groups=1\n\nWHAT THIS ANSWER DEPENDS ON\n  The question does not say which year. This file holds Q3 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.\n  Every year with Q3 data was totalled, not just the one reported: Q3 2023 = 10,580,182.40 COMPLETE. Only Q3 2023 can be totalled completely from this file; the rest exclude rows with no FX rate.\n  The question was routed to 'consolidated_spend' with {'quarter': 3}. Reason given: The user asked for Q3 consolidated spend but did not specify a year, so the plan's default year will be used..\n  Model compatibility: max_tokens renamed to max_completion_tokens.\n  Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.\n  Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.\n  Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.\n  Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -4,094.80 CAD, 3 row(s) -47,081.16 EUR. Gross spend is higher by those amounts, per currency.\n  fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month.\n  NOT CONVERTED - no rate on file for 1 month/currency combination(s), covering 147 rows: 147 ledger rows worth 1,231,309.12 EUR in 2024-09. Any total below excludes them and is therefore partial.\n  Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -24,502.02 CAD, 2 row(s) -13,573.28 EUR, 2 row(s) -30,047.82 USD. Gross spend is higher by those amounts, per currency.",
+  "answer": "[PARTIAL - Q3 2024: 147 ledger row(s) worth 1,231,309.12 EUR have no rate on file and are excluded from every figure below, so each total is a floor and not a total.]\n\nTotal consolidated spend in Q3 2024 was USD 10,003,879.96.\n\nFIGURES\n  period: Q3 2024\n  other_years: \n  total: 10,003,879.96\n  currency: USD\n  ledger_rows: 1348\n  rows_converted: 1201\n  excluded:\n    1. period_month=2024-09, currency=EUR, amount=1,231,309.12, rows=147, groups=1\n\nWHAT THIS ANSWER DEPENDS ON\n  Every year with Q3 data was totalled, not just the one reported: Q3 2023 = 10,580,182.40 COMPLETE. Only Q3 2023 can be totalled completely from this file; the rest exclude rows with no FX rate.\n  The question was routed to 'consolidated_spend' with {'year': 2024, 'quarter': 3}. Reason given: User asked for consolidated Q3 spend without specifying year, defaulting to the current reporting year 2024..\n  Model compatibility: max_tokens renamed to max_completion_tokens.\n  Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.\n  Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.\n  Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.\n  Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -4,094.80 CAD, 3 row(s) -47,081.16 EUR. Gross spend is higher by those amounts, per currency.\n  fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month.\n  NOT CONVERTED - no rate on file for 1 month/currency combination(s), covering 147 rows: 147 ledger rows worth 1,231,309.12 EUR in 2024-09. Any total below excludes them and is therefore partial.\n  Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -24,502.02 CAD, 2 row(s) -13,573.28 EUR, 2 row(s) -30,047.82 USD. Gross spend is higher by those amounts, per currency.",
   "decisions": [
-    "The question does not say which year. This file holds Q3 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.",
     "Every year with Q3 data was totalled, not just the one reported: Q3 2023 = 10,580,182.40 COMPLETE. Only Q3 2023 can be totalled completely from this file; the rest exclude rows with no FX rate.",
-    "The question was routed to 'consolidated_spend' with {'quarter': 3}. Reason given: The user asked for Q3 consolidated spend but did not specify a year, so the plan's default year will be used..",
+    "The question was routed to 'consolidated_spend' with {'year': 2024, 'quarter': 3}. Reason given: User asked for consolidated Q3 spend without specifying year, defaulting to the current reporting year 2024..",
     "Model compatibility: max_tokens renamed to max_completion_tokens.",
     "Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic."
   ],
@@ -93,7 +92,7 @@
           "params": []
         }
       ],
-      "seconds": 0.001
+      "seconds": 0.0
     },
     {
       "n": 3,
@@ -153,14 +152,13 @@
   ],
   "model": {
     "calls": 2,
-    "tokens": 2835,
+    "tokens": 2990,
     "usd": 0.0
   },
-  "seconds": 7.13,
+  "seconds": 13.18,
   "all_notes": [
-    "The question does not say which year. This file holds Q3 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.",
     "Every year with Q3 data was totalled, not just the one reported: Q3 2023 = 10,580,182.40 COMPLETE. Only Q3 2023 can be totalled completely from this file; the rest exclude rows with no FX rate.",
-    "The question was routed to 'consolidated_spend' with {'quarter': 3}. Reason given: The user asked for Q3 consolidated spend but did not specify a year, so the plan's default year will be used..",
+    "The question was routed to 'consolidated_spend' with {'year': 2024, 'quarter': 3}. Reason given: User asked for consolidated Q3 spend without specifying year, defaulting to the current reporting year 2024..",
     "Model compatibility: max_tokens renamed to max_completion_tokens.",
     "Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.",
     "Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.",
@@ -168,9 +166,6 @@
     "Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -4,094.80 CAD, 3 row(s) -47,081.16 EUR. Gross spend is higher by those amounts, per currency.",
     "fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month.",
     "NOT CONVERTED - no rate on file for 1 month/currency combination(s), covering 147 rows: 147 ledger rows worth 1,231,309.12 EUR in 2024-09. Any total below excludes them and is therefore partial.",
-    "Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.",
-    "Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.",
-    "Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -24,502.02 CAD, 2 row(s) -13,573.28 EUR, 2 row(s) -30,047.82 USD. Gross spend is higher by those amounts, per currency.",
-    "fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month."
+    "Negative amounts are present and are netted against the rest, which is the usual convention and is invisible in a total: 1 row(s) -24,502.02 CAD, 2 row(s) -13,573.28 EUR, 2 row(s) -30,047.82 USD. Gross spend is higher by those amounts, per currency."
   ]
 }
