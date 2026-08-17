@@ -131,32 +131,23 @@ model calls, 200,000 tokens, USD 0.50** per question.
 
 The **money** ceiling is broken: `Model.ask` takes the per-million prices as arguments defaulting to
 zero, nothing supplies them, so the running cost is always `0.00` and the comparison against USD
-0.50 can never be true. A ceiling that cannot see the spend is the exact failure the next paragraph
-says a ceiling must not have.
+0.50 can never be true. The traces do not record which model produced them either, and a token count
+without a model name cannot be turned into money.
 
-The **step** and **token** ceilings are not broken — they are simply out of reach, and that is the
-architecture working. There is no tool loop: the model is called exactly twice per question, once to
-route and once to write, and once only when the plan refuses before the writer. Twelve calls cannot
-happen because two is the structural maximum; 200,000 tokens cannot happen because the largest of
-the eight runs is 9,757. The mechanism itself is sound — set `max_calls=2` and the third call is
-refused rather than truncated — so the ceilings are a net under a design that does not fall. **An
-agent with a free-running loop would need them; this one has them because the brief asks for them,
-and the honest thing is to say they have never fired.**
-
-Named here rather than left standing, because a reported zero reads as measured and an unfired
+The **step** and **token** ceilings are out of reach, which is the architecture working rather than
+a defect. There is no tool loop: the model is called twice per question — once to route, once to
+write — and once when the plan refuses before the writer. Twelve calls cannot happen because two is
+the structural maximum; 200,000 cannot happen because the largest of the eight runs is 9,757. The
+mechanism is sound: set `max_calls=2` and the third call is refused rather than truncated. **An
+agent with a free-running loop would need these; this one has them because the brief asks, and the
+honest thing is to say they have never fired** — a reported zero reads as measured, and an unfired
 ceiling reads as an enforced one.
 
-The cost evidence is the eight traces under [`traces/`](traces/), one per question, each from the
-English question rather than a plan name. **36,359 tokens for all eight**, from **1,239** to
-**9,757** — the smallest is `cost_per_fte`, which refuses after routing and never reaches the
-writer, so a refusal costs one call instead of two. None of them records **which model produced
-them**, which is the second half of the same gap: a token count without a model name cannot be
-turned into money either. An earlier figure of 9,000–10,000 tokens for `gpt-5-mini` appeared here
-and is not reproducible from anything committed, so it is withdrawn.
-
-It counts `total_tokens` and not prompt + completion, because reasoning tokens are billed inside
-the total and appear in neither of the other two. Summing the other two undercounted the real spend
-by 90%, and a ceiling that cannot see the spend is not a ceiling.
+The evidence is the eight traces under [`traces/`](traces/): **36,359 tokens for all eight**, from
+**1,239** to **9,757**. The smallest is `cost_per_fte`, which refuses after routing and never
+reaches the writer, so a refusal costs one call instead of two. The count is `total_tokens` and not
+prompt + completion, because reasoning tokens are billed inside the total and appear in neither of
+the other two — summing those undercounted the real spend by 90%.
 
 ## Where I disagree with one of yours
 
@@ -198,14 +189,3 @@ it three times before changing it.
 
 The honest remainder of that row: the trace is checked mechanically, the paragraph is not — prose
 is still graded by reading it.
-
-## What I would change with more time
-
-**A metric per question rather than per answer.** Two of the five answers failed their first
-independent grading, and both failures were the same shape: content the code had already computed
-sat in the findings as a raw key, and the paragraph — the only path it had to the reader — did not
-carry it. The fix was to print it from code. The general version of that fix is a check that every
-`must_declare` entry has a named emitter, so a requirement nobody satisfies fails loudly instead of
-quietly. That check has since been built — `EMISORES` in `evals/eight.py` — so what remains of
-this item is the metric itself: a per-question judgement of whether the paragraph carries what the
-trace proved.
