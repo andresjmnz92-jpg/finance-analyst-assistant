@@ -199,7 +199,8 @@ honest comparison is **which caveats each one dropped**, not which totals differ
   and never arrives — and that is not hypothetical: a line-based search for the sentence deciding
   the FTE question returned nothing, because it spans a line break.
 - **No database beyond the local file**, which is also your rule. No performance argument either:
-  grouping all 10,916 rows takes 4 ms. **No dependencies at all** — clone it, run it with 3.12.
+  `query_ledger` grouping all 10,916 rows returns in 13 ms. **No dependencies at all** — clone it,
+  run it with 3.12.
 - **The nightly-rate policy rule, after measuring it.** It is checkable from the free-text memo, 100%
   of Meridian's hotel memos parse, and it finds 7 breaches — but a memo format is a property of one
   file, and the approval rule answers the question from columns that exist.
