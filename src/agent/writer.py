@@ -27,6 +27,27 @@ way of hedging it.
 Moving instructions into a file would not have done this. What takes a rule out
 of the prompt is making it impossible to break, not writing it down elsewhere.
 
+THE CAVEATS REACHED THE READER AND THE CONCLUSION DID NOT CARRY THEM
+Printing the notes under the paragraph is not the same as qualifying the sentence
+above them, and three independent reviews found the same shape of failure:
+
+    "The total consolidated spend in Q3 2024 was USD 10,003,879.96." - the whole
+        paragraph, over a run whose status is PARTIAL and whose findings say 147
+        rows worth 1,231,309.12 EUR are missing from that figure.
+    "-204,257.95 (-14.4%)" as the headline, while the same findings publish
+        difference_bounded [-181,395.96, -179,352.43]. The number read first sits
+        outside the honest range the system itself computed.
+    327 policy candidates at a threshold of 1,000 that appears in no document in
+        the pack. The trace said so; the paragraph did not, and at the threshold
+        the policy does state there are 282.
+
+In all three the data was measured, published in the findings and written into
+the notes. What failed is the sentence a manager reads first, and the fix is the
+one this file already argues for everywhere else: the qualification is printed by
+CODE, above the paragraph, from the findings - never asked of the model. A rule
+that can be disobeyed and does damage when it is belongs in code, not in a
+prompt.
+
 THE ONE RULE THAT STAYS A REQUEST, AND ITS GUARD
 The paragraph may still contain a figure, so it can still contain a wrong one.
 Every number it writes is checked against the numbers present in the findings and
@@ -215,6 +236,101 @@ def _figuras(datos, tope=12):
     return lineas
 
 
+SUFIJO_COTA = "_bounded"
+
+
+def _tolerancia(valor):
+    """One unit of the last decimal a figure was rounded to.
+
+    The same idiom _fabricados uses, and here for the same reason. The findings
+    round a difference to two decimals and a percentage to one, so a point and
+    its own bound can land on either side of the same true number by rounding
+    alone. Compared exactly, a figure INSIDE its range is reported as outside it -
+    and a qualification that fires when it should not is one nobody reads by the
+    third answer.
+    """
+    texto = repr(float(valor))
+    return 10.0 ** -len(texto.split(".")[1]) if "." in texto else 1.0
+
+
+def _numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def _cualificaciones(datos):
+    """What the conclusion has to say about itself, read from the findings.
+
+    Three conditions, all structural. None of them reads the paragraph or any
+    note: a check over prose is a heuristic, and these fire on the presence of a
+    key and the comparison of two figures the tools already measured.
+
+      1. The run is PARTIAL and something was excluded. What is missing is in
+         `excluded`, measured by convert_currency, and the period - the year that
+         was CHOSEN - is in the findings beside it.
+      2. A point figure published outside its own bound. Any `X_bounded` pair of
+         numbers with an `X` beside it: the range incorporates the rows the point
+         leaves out, so a point outside it is the narrower number wearing the
+         wider one's authority.
+      3. `rule_source` present and EMPTY. run.py already emits that decision -
+         "the rule applied came from whoever asked and not from the policy" - and
+         empty is a positive statement, not a missing key.
+
+    What is NOT covered, said rather than implied: bounds that are not a two-item
+    list under an `X_bounded` key. opex_by_cost_centre publishes per-centre
+    at_least/at_most inside `by_cost_centre_bounds`, which has no single point
+    figure to test against - there is one per centre, and picking one to headline
+    is a judgement this function does not make.
+    """
+    hallazgos = datos.get("findings") or {}
+    excluido = hallazgos.get("excluded") or []
+    lineas = []
+
+    if datos.get("status") == "PARTIAL" and excluido:
+        por_moneda, filas = {}, 0
+        for h in excluido:
+            por_moneda[h["currency"]] = round(por_moneda.get(h["currency"], 0.0) + h["amount"], 2)
+            filas += h.get("rows", 1)
+        periodo = hallazgos.get("period")
+        lineas.append(
+            f"PARTIAL{f' - {periodo}' if periodo else ''}: {filas} ledger row(s) worth "
+            + ", ".join(f"{i:,.2f} {m}" for m, i in sorted(por_moneda.items()))
+            + " have no rate on file and are excluded from every figure below, so each total "
+              "is a floor and not a total.")
+
+    for clave, rango in hallazgos.items():
+        if not clave.endswith(SUFIJO_COTA):
+            continue
+        punto = hallazgos.get(clave[:-len(SUFIJO_COTA)])
+        if not (isinstance(rango, list) and len(rango) == 2
+                and all(_numero(v) for v in (*rango, punto))):
+            continue
+        bajo, alto = sorted(rango)
+        margen = max(_tolerancia(v) for v in (punto, bajo, alto))
+        # ROUNDED before comparing, and not for tidiness. A point one cent below its
+        # bound is a rounding difference and must stay silent, but subtracting the two
+        # floats gives 0.010000000029, which is greater than 0.01 and fired. The
+        # qualification would have appeared on a figure that is inside its range - the
+        # false positive this whole check cannot afford.
+        exceso = round(max(bajo - punto, punto - alto), 10)
+        if exceso > margen:
+            lineas.append(
+                f"{clave[:-len(SUFIJO_COTA)]} is published as {punto:,.2f} and the measured "
+                f"range is {bajo:,.2f} to {alto:,.2f}. The headline figure is OUTSIDE that "
+                f"range: it leaves out rows the range accounts for.")
+
+    if "rule_source" in hallazgos and not hallazgos["rule_source"]:
+        umbral = hallazgos.get("threshold_usd")
+        cuantos = hallazgos.get("candidate_count")
+        lineas.append(
+            "The rule applied here is not the pack's: no document states a"
+            + (f" {umbral:,.0f}" if _numero(umbral) else "")
+            + " approval threshold, so it came from whoever asked. "
+            + (f"The {cuantos} candidate(s) below are" if _numero(cuantos) else "What is below is")
+            + " counted against a rule this dataset does not carry.")
+
+    return lineas
+
+
 def _armar(parrafo, datos, aviso=None):
     """The answer as the reader gets it. Only the paragraph came from the model.
 
@@ -228,6 +344,11 @@ def _armar(parrafo, datos, aviso=None):
     that is evidence. This is the answer, which is a different job.
     """
     partes = []
+    # ABOVE the paragraph, because that is where the sentence being qualified is.
+    # The guard below annotates rather than retires, and so does this: the total is
+    # still the total and the paragraph is printed untouched - it arrives
+    # accompanied.
+    partes += [f"[{l}]" for l in _cualificaciones(datos)]
     if aviso:
         partes.append(f"[{aviso}]")
     if parrafo:
