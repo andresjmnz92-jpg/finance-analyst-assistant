@@ -88,7 +88,7 @@ Eight, each small and boring. Every one exists because at least one of the eight
 
 - **No vector store, no retrieval, no embeddings.** Four internal documents, under 6 KB, read whole.
 - Chunking would add an embedding model, a store and a threshold, so the paragraph that answers the question can rank fourth and never arrive — not hypothetical: a line-based search for the sentence deciding Q7 returned nothing, because the sentence spans a line break.
-- **No database beyond the local file**, which the brief also rules out. No performance argument either: grouping all 10,916 rows takes 4 ms, scanning every memo 2 ms.
+- **No database beyond the local file**, which the brief also rules out. No performance argument either: `query_ledger` grouping all 10,916 rows returns in 13 ms and scanning every memo takes 1 ms — measured, and an earlier "4 ms" here was not reproducible.
 - **No free-running tool loop.** The path is written down because it could be.
 - **`convert_currency` does not fill gaps.** *"These 147 rows could not be converted"* is the function, not a failure mode — the missing rate does not only break Q3, it silently flips the sign of the budget variance for **43 centre/account pairs**, all three European cost centres.
 
