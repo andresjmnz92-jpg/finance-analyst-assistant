@@ -516,8 +516,12 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
     minimo = {m: r[0] for m, r in fx["rate_range"].items()}
     comparacion = []
     for k in sorted(set(plan) | set(real)):
-        gastado = real.get(k, 0.0)
         faltante = pendiente.get(k, {})
+        # NO LEDGER ROWS IS NOT "SPENT ZERO". real.get(k, 0.0) turned a centre that has a
+        # budget and no rows at all into a -100% deviation, which is a measurement the data
+        # never made. Rows that exist and could not be CONVERTED are a different case and
+        # still count as zero here, because understated_by_at_least says what is missing.
+        gastado = real.get(k, 0.0 if faltante else None)
         # A LOWER bound on what is missing: the lowest rate on file for that currency.
         # If the deviation already changes sign at the lowest rate, it changes at any
         # rate - and that can be stated without inventing the rate that does not exist.
@@ -530,7 +534,14 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                           if mon in minimo), 2)
         fila = {"entity": k[0], "cost_centre": k[1], "account_code": k[2],
                 "actual": gastado, "budget": plan.get(k, {}), "deviation": {}}
+        # No actuals, no deviation. An empty deviation keeps the centre out of both
+        # rankings - the same door percent_undefined_zero_budget goes through - while the
+        # budget it does carry is still published below.
+        if gastado is None:
+            fila["no_actuals"] = True
         for v, presupuestado in sorted(plan.get(k, {}).items()):
+            if gastado is None:
+                continue
             d = round(gastado - presupuestado, 2)
             fila["deviation"][v] = {
                 "usd": d,
@@ -539,7 +550,7 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                 fila["sign_flips"] = True
         # A zero budget with real spend: the percentage is not 0, it is undefined, and
         # ranking it as 0 drops the centre spending with no plan out of the list.
-        if any(p == 0 for p in plan.get(k, {}).values()) and gastado > 0:
+        if any(p == 0 for p in plan.get(k, {}).values()) and (gastado or 0) > 0:
             fila["percent_undefined_zero_budget"] = True
         if faltante:
             fila["not_converted"] = faltante
@@ -549,6 +560,19 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
         if not plan.get(k):
             fila["no_budget"] = True
         comparacion.append(fila)
+
+    # WHAT DOES NOT PAIR UP IS SHOWN UNPAIRED, NEVER DROPPED. Both rankings need a
+    # deviation, and a deviation needs both sides, so a centre that has only one of them
+    # falls out of every list this plan prints. no_budget was already being computed and
+    # nothing read it: the centre with the largest spend of the quarter left no trace in
+    # the answer. These two lists are that trace, and they carry the figure that exists -
+    # the spend for one, the plan for the other - because half a pair is still a fact.
+    sin_presupuesto = [{"entity": c["entity"], "cost_centre": c["cost_centre"],
+                        "account_code": c["account_code"], "actual": c["actual"]}
+                       for c in comparacion if c.get("no_budget")]
+    sin_gasto = [{"entity": c["entity"], "cost_centre": c["cost_centre"],
+                  "account_code": c["account_code"], "budget": c["budget"]}
+                 for c in comparacion if c.get("no_actuals")]
 
     def peores(metrica):
         con_pres = [c for c in comparacion if c["deviation"]]
@@ -566,6 +590,11 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
                 "reason": "no key has both actuals and a budget in this period; the budget "
                           "may not cover it"}
 
+    # p always has ledger rows behind it: peores() only ranks rows with a deviation, and a
+    # deviation now requires BOTH sides. So this breakdown cannot come back empty without
+    # the first query being empty too. The unpaired centres are reported above instead -
+    # breaking a centre down by vendor when the whole point is that it has no plan to
+    # break against would answer a question nobody asked.
     p = por_valor[0]
     desglose = eje.usar(query_ledger, con=eje.con, date_from=desde, date_to=hasta,
                         entity=p["entity"], cost_centre=p["cost_centre"],
@@ -605,6 +634,20 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
         f"They are different questions and the lists differ; a range is given per entry "
         f"because the budget exists twice and nothing says which set is current.")
 
+    if sin_presupuesto or sin_gasto:
+        eje.trace.decision(
+            f"{len(sin_presupuesto)} centre/account pair(s) SPENT WITH NO BUDGET LINE and "
+            f"{len(sin_gasto)} carry A BUDGET WITH NO ROWS. Neither can have a deviation, so "
+            f"neither appears in the two rankings above - they are listed on their own so the "
+            f"money is not lost between the lists. Spent with no budget: "
+            + ("; ".join(f'{c["cost_centre"]}/{c["account_code"]} ({c["actual"]:,.2f} USD)'
+                         for c in sin_presupuesto) or "none")
+            + ". Budgeted with no spend: "
+            + ("; ".join(f'{c["cost_centre"]}/{c["account_code"]} ('
+                         + " to ".join(f"{b:,.2f}" for b in c["budget"].values())
+                         + " USD)" for c in sin_gasto) or "none")
+            + ". A budget with no rows is NOT spend of zero, and it is not reported as -100%.")
+
     volteados = [c for c in comparacion if c.get("sign_flips")]
     if volteados:
         eje.trace.decision(
@@ -619,6 +662,8 @@ def budget_variance(eje, year=None, quarter=3, top=5, date_field="accrual_date")
         "period": f"Q{quarter} {year}", "currency": fx["currency"],
         "worst_by_value": por_valor,
         "worst_by_percent": por_pct,
+        "spend_with_no_budget": sin_presupuesto,
+        "budget_with_no_spend": sin_gasto,
         "budget_versions": pres["versions"],
         "centres_with_two_sets": pres["centres_with_two_sets"],
         "driver": {"entity": p["entity"], "cost_centre": p["cost_centre"],

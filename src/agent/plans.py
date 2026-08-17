@@ -82,7 +82,8 @@ PLANS = {
         "tools": ["query_ledger", "convert_currency", "query_budget",
                   "query_ledger", "normalize_vendors"],
         "must_declare": ["worst by value or by percent", "two budget sets",
-                         "unconverted rows by centre", "which sign flips because of them"],
+                         "unconverted rows by centre", "which sign flips because of them",
+                         "centres with only one side of the comparison"],
         "model_decides": [],           # la variante con modelo elige el segundo desglose
     },
     "policy_breaches": {

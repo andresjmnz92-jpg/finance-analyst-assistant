@@ -151,6 +151,12 @@ EMISORES = {
         and "sign_flipped_by_missing_rates" in (t["findings"] or {}),
     "which sign flips because of them":
         lambda t: "sign_flipped_by_missing_rates" in (t["findings"] or {}),
+    # Key EXISTENCE, not truthiness, for the same reason as 'what could not be
+    # converted': a quarter where every centre pairs up publishes two empty lists,
+    # and that is the declaration that both halves were looked for.
+    "centres with only one side of the comparison":
+        lambda t: "spend_with_no_budget" in (t["findings"] or {})
+        and "budget_with_no_spend" in (t["findings"] or {}),
     # policy_breaches: what WAS checked is structure; what was NOT rides the
     # decision run.py emits unconditionally, outside any branch.
     "which policy rules are checkable with these columns":
