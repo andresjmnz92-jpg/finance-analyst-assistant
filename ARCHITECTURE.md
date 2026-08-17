@@ -70,10 +70,10 @@ needs it.
 
 | Tool | What it does | Needed by |
 | --- | --- | --- |
-| `query_ledger` | filter the GL by period, account, centre, entity, vendor; group and sum | all |
-| `resolve_accounts` | expand the hierarchy to leaf accounts, **respecting `valid_from`/`valid_to`** | 1, 2, 5, 6, 7 |
+| `query_ledger` | filter the GL by period, account, centre, entity, vendor; group and sum | 1–7 |
+| `resolve_accounts` | expand the hierarchy to leaf accounts, **respecting `valid_from`/`valid_to`** | 1, 2, 6, 7 |
 | `list_account_names` | the chart as a menu, so the model picks a code instead of recalling one | 1, 2, 6, 7 |
-| `convert_currency` | apply FX and **return what it could not convert**, plus the rate range | 3, 4, 5, 6 |
+| `convert_currency` | apply FX and **return what it could not convert**, plus the rate range | 1, 2, 3, 4, 5, 6 |
 | `query_budget` | budget by centre/account/month, **surfacing duplicate keys** | 5 |
 | `normalize_vendors` | propose groupings of name variants; flag catch-alls | 4, 5, 8 |
 | `find_duplicate_payments` | candidates by business attributes, with evidence | 8 |
@@ -83,7 +83,7 @@ needs it.
 
 | | Questions | What the model does |
 | --- | --- | --- |
-| Route only | 3, 5, 8 | Names the plan. Nothing else. |
+| Route only | 3, 4, 5, 8 | Names the plan. Nothing else. For 4, the vendor groupings are proposed by `normalize_vendors` and **accepted by the plan, not by the model** |
 | Route and name an account | 1, 2, 6, 7 | Picks a code from `list_account_names`; `resolve_accounts` refuses a code that is not in force, so it cannot invent one |
 | Route, name an account, supply a rule | 6 | The approval threshold. The plan then looks for that number in the documents and says whether the rule is the policy's or the caller's |
 
@@ -125,8 +125,19 @@ sign of the budget variance for **43 centre/account pairs**, all three European 
 ## Ceilings
 
 `Budget` carries three and refuses the call that would cross one, rather than truncating: **12
-model calls, 200,000 tokens, USD 0.50** per question. Measured against `gpt-5-mini`, a question
-costs **2 calls and roughly 9,000–10,000 tokens** — one to route, one to write.
+model calls, 200,000 tokens, USD 0.50** per question.
+
+**Two of the three are live. The money one is not.** `Model.ask` takes the per-million prices as
+arguments defaulting to zero, and nothing in the repository supplies them, so the running cost is
+always `0.00` and the comparison against USD 0.50 can never be true. It is a ceiling that cannot see
+the spend, which is the exact failure the next paragraph says a ceiling must not have. Named here
+rather than left standing, because a reported zero reads as measured.
+
+The only cost evidence committed is the two traces: `consolidated_spend` at **2 calls and 3,002
+tokens**, `largest_vendors` at **2 calls and 4,289 tokens**. Neither records **which model produced
+them**, which is the second half of the same gap — a token count without a model name cannot be
+turned into money either. An earlier figure of 9,000–10,000 tokens for `gpt-5-mini` appeared here
+and is not reproducible from anything committed, so it is withdrawn.
 
 It counts `total_tokens` and not prompt + completion, because reasoning tokens are billed inside
 the total and appear in neither of the other two. Summing the other two undercounted the real spend
@@ -136,7 +147,7 @@ by 90%, and a ceiling that cannot see the spend is not a ceiling.
 
 | Claim | Evidence |
 | --- | --- |
-| The figures are right | Every plan checked field by field against `evals/fixtures/EXPECTED.md`, written by hand before the code |
+| The figures are right **on Tessera** | Every plan checked field by field against `evals/fixtures/EXPECTED.md`, written by hand before the code. **By hand, not by a command:** no check in `evals/` reads that file. Meridian has no such file, by design — it is judged by behaviour instead, one row down |
 | Nothing is hardcoded to Meridian | The same loader and the same plans run over both datasets; `python -m evals.no_borrowed_facts` fails if a tool's note mentions anything only Meridian has |
 | The guards still fire | `python -m evals.guards` reproduces each fixed defect on a mutated copy of the fixture, and each was verified in the failing direction |
 | The router picks correctly | Measured by hand during development, two live sweeps of the eight questions; not automated here, because routing needs a model and the eval suites run without one |

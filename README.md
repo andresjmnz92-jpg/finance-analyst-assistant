@@ -136,7 +136,7 @@ own, and nobody should discover that by accident.
 
 | | |
 | --- | --- |
-| ✅ The eight plans | Every figure checked against `EXPECTED.md`, on both datasets |
+| ✅ The eight plans | Every Tessera figure checked by hand against `EXPECTED.md`. Meridian carries no expected figures on purpose — it is judged by behaviour, see [Why there are two datasets](#why-there-are-two-datasets) |
 | ✅ The router | 8 of 8 questions to the right plan, with the right account code each time — measured by hand, two live sweeps during development; not automated here, because routing needs a model and the eval suites run without one |
 | ✅ The writer, the trace and the CLI | One model call to route, one to write; figures and caveats printed by code |
 | ✅ Three eval commands | `eight`, `no_borrowed_facts` and `guards` |
@@ -152,6 +152,10 @@ own, and nobody should discover that by accident.
   memo — 100% of Meridian's hotel memos carry nights and a city, and doing it finds 7 breaches —
   but a memo format is a property of one file, while the approval rule answers the question from
   columns that exist. Measured, then cut on purpose.
+- **The cost in the trace is always `$0.00`, and that is not a measurement.** `Model.ask` takes the
+  per-million prices as arguments defaulting to zero and nothing supplies them, so the money ceiling
+  described in [`ARCHITECTURE.md`](ARCHITECTURE.md) can never fire. The call count and the token
+  count are real; the money is not. The trace also does not record which model produced the tokens.
 - `duplicate_payments` prints vendor codes where it should print names.
 - The fixture has one internal document instead of four, no cost centre rename and no credit notes.
   Those are exercised against Meridian only.
