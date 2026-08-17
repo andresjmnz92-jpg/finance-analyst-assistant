@@ -158,6 +158,34 @@ It counts `total_tokens` and not prompt + completion, because reasoning tokens a
 the total and appear in neither of the other two. Summing the other two undercounted the real spend
 by 90%, and a ceiling that cannot see the spend is not a ceiling.
 
+## Where I disagree with one of yours
+
+> *"A plausible wrong answer costs more than a refusal."*
+
+**True of an answer. Not true of the guard that judges one, and this repository has the measurement
+rather than the opinion.**
+
+The principle rests on an asymmetry: withholding is cheap, being confidently wrong is expensive. It
+holds when the thing deciding is a measurement. It **inverts** when the thing deciding is a
+heuristic over free text — because then the guard is wrong too, and when it is wrong it withdraws a
+*correct* answer. That is the same loss the principle is trying to avoid, plus the cost of arriving
+at it.
+
+The figure guard is exactly that case. Its first version obeyed the principle literally: any figure
+it could not match got the paragraph rejected and rewritten, twice, before falling back to bare
+figures. **It fired three times and was wrong all three** — a truncated numeral, a correct sign, and
+the ordinals of a bulleted list, all detailed above. Three correct answers deleted over formatting,
+at two model calls each. Nothing it caught was ever a fabrication.
+
+So the rule here is narrower than yours: **a guard that cannot measure annotates; only a guard that
+can measure refuses.** `cost_per_fte` refuses outright, because "no column in this schema holds an
+FTE count" is a fact about the data. The figure guard annotates, because "this string does not
+appear in my list of measured numbers" is a fact about a regular expression.
+
+The cost of being wrong in my direction is a visible line reading *"not verified"* above a correct
+paragraph. The cost of being wrong in the other direction was a deleted correct answer, and we paid
+it three times before changing it.
+
 ## What is measured and what is asserted
 
 | Claim | Evidence |
