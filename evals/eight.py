@@ -185,6 +185,11 @@ def comprobar(nombre, trace, fallos):
     a COMPLETE with exclusions, or a PARTIAL naming nothing, is a lie whichever
     dataset produced it. That is the check that survives Keyrus's dataset:
     against a full FX grid, COMPLETE is correct and this suite agrees.
+
+    Returns True when the run refused early, before any must_declare evidence
+    could exist - callers use this to report how many runs were exempt from
+    the evidence checks instead of letting an exempt run look identical to one
+    that actually exercised them.
     """
     status = trace["status"]
     f = trace["findings"] or {}
@@ -192,7 +197,7 @@ def comprobar(nombre, trace, fallos):
 
     if status not in LEGALES:
         fallos.append(f"{donde}: status {status!r} is not one of {sorted(LEGALES)}")
-        return
+        return False
     if nombre in ESTRUCTURALES and status != ESTRUCTURALES[nombre]:
         fallos.append(f"{donde}: {status}, but {ESTRUCTURALES[nombre]} is structural "
                       f"for this plan on any dataset with these columns")
@@ -217,7 +222,7 @@ def comprobar(nombre, trace, fallos):
         if not f.get("reason"):
             fallos.append(f"{donde}: refused without naming a reason - a silent "
                           f"refusal is as unanswerable as a silent total")
-        return
+        return temprano
     excluido = f.get("excluded")
     if status == "COMPLETE" and excluido:
         fallos.append(f"{donde}: says COMPLETE while {len(excluido)} group(s) "
@@ -225,22 +230,30 @@ def comprobar(nombre, trace, fallos):
     if status == "PARTIAL" and not excluido:
         fallos.append(f"{donde}: says PARTIAL but its findings name nothing "
                       f"that is missing")
+    return False
 
 
 def main():
-    faltan = [d for d in DATASETS if not (RAIZ / d).exists()]
+    # No arguments keeps running exactly the two datasets this suite ships
+    # with, as documented; any datasets given on the command line replace
+    # them, so the runner can be pointed at a second dataset instead of
+    # silently ignoring it.
+    datasets = sys.argv[1:] or DATASETS
+
+    faltan = [d for d in datasets if not (RAIZ / d).exists()]
     if faltan:
         sys.exit(f"missing {', '.join(faltan)}. Build them first:\n"
                  f"  python -m src.load\n  python -m src.load evals/fixtures")
 
-    fallos, corridas = [], 0
-    for db in DATASETS:
+    fallos, corridas, exentas = [], 0, 0
+    for db in datasets:
         con = sqlite3.connect(RAIZ / db)
         for nombre, params in CASOS:
             antes = len(fallos)
             try:
                 trace = run(nombre, con, dataset=db, **params).as_dict()
-                comprobar(nombre, trace, fallos)
+                if comprobar(nombre, trace, fallos):
+                    exentas += 1
                 estado = trace["status"]
             except Exception as e:            # noqa: BLE001 - one run, one line
                 fallos.append(f"{db}/{nombre}: {type(e).__name__}: {e}")
@@ -250,14 +263,19 @@ def main():
                   f"{'ok' if len(fallos) == antes else 'FAIL'}")
         con.close()
 
-    print(f"\n{len(CASOS)} plan(s) x {len(DATASETS)} dataset(s), "
-          f"{corridas} run(s), {len(fallos)} failure(s).")
+    print(f"\n{len(CASOS)} plan(s) x {len(datasets)} dataset(s), "
+          f"{corridas} run(s), {len(fallos)} failure(s), "
+          f"{corridas - exentas} exercised must_declare, {exentas} exempt (refused early).")
     if fallos:
         print("\nFAIL:")
         for f in fallos:
             print(f"  - {f}")
         sys.exit(1)
-    print("PASS - every expectation above was derived from the dataset, none stored.")
+    if exentas:
+        print(f"PASS - {exentas} of {corridas} run(s) refused before must_declare "
+              f"evidence could exist and were exempt from those checks.")
+    else:
+        print("PASS - every expectation above was derived from the dataset, none stored.")
 
 
 if __name__ == "__main__":
