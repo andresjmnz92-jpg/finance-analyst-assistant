@@ -31,7 +31,7 @@ WHAT IS MEASURED, AND WHAT IS NOT
 Every plan runs over two datasets in evals/eight.py, and each must_declare below
 is checked against the trace by a named emitter. What is NOT here, though an
 earlier version of this docstring claimed it: there is no model-driven variant of
-any plan, and nothing runs two versions of anything and compares them. RUTINAS in
+any plan, and nothing runs two versions of anything and compares them. ROUTINES in
 run.py holds one function per plan, and that is the whole of it.
 """
 

@@ -65,7 +65,7 @@ BASE_POR_DEFECTO = "https://generativelanguage.googleapis.com/v1beta/openai/"
 MODELO_POR_DEFECTO = "gemini-3.6-flash"
 
 
-def cargar_env(ruta=None):
+def load_env(ruta=None):
     """Read .env into the environment. utf-8-sig because a file written by
     PowerShell carries a BOM, which turns the first key into '\\ufeffMODEL_API_KEY'
     and is invisible in every editor."""

@@ -359,7 +359,7 @@ def _armar(parrafo, datos, aviso=None):
     return "\n\n".join(p for p in partes if p)
 
 
-def redactar(trace, budget, sistema=None):
+def compose(trace, budget, sistema=None):
     """Write the answer onto the trace and return it.
 
     A REFUSED run never reaches the model. There is no number to summarise and

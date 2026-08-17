@@ -83,7 +83,7 @@ def _json(texto):
     return json.loads(limpio[inicio:fin + 1])
 
 
-def elegir(pregunta, con, budget, rutinas, as_of=None):
+def choose(pregunta, con, budget, rutinas, as_of=None):
     """Question in, {plan, params, why, dropped} out. Validated, never trusted."""
     as_of = as_of or con.execute(
         "SELECT MAX(accrual_date) FROM gl_transactions").fetchone()[0]
@@ -113,7 +113,7 @@ def elegir(pregunta, con, budget, rutinas, as_of=None):
             "why": elegido.get("why", ""), "model": salida}
 
 
-def anotar(trace, eleccion):
+def annotate(trace, eleccion):
     """Put the routing decision in the trace, including what was thrown away."""
     trace.model_call(eleccion["model"])
     trace.decision(

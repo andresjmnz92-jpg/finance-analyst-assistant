@@ -48,7 +48,7 @@ from src.tools.budget import query_budget
 from src.tools.documents import read_document
 from src.tools.duplicates import find_duplicate_payments
 from src.tools.fx import convert_currency
-from src.tools.ledger import CAMPOS_FECHA, query_ledger
+from src.tools.ledger import DATE_FIELDS, query_ledger
 from src.tools.vendors import normalize_vendors
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
@@ -85,8 +85,8 @@ def _anios_con_datos(con, campo, desde_mes, hasta_mes):
     author happened to have in mind is the confident wrong answer; the honest
     move is to state which years were on offer and which was taken.
     """
-    if campo not in CAMPOS_FECHA:
-        raise ValueError(f"date_field must be one of {CAMPOS_FECHA}")
+    if campo not in DATE_FIELDS:
+        raise ValueError(f"date_field must be one of {DATE_FIELDS}")
     return [r[0] for r in con.execute(
         f"SELECT DISTINCT substr({campo},1,4) FROM gl_transactions "
         f"WHERE substr({campo},6,2) BETWEEN ? AND ? ORDER BY 1", (desde_mes, hasta_mes))]
@@ -352,7 +352,7 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
     """
     anios = [r[0] for r in eje.con.execute(
         f"SELECT DISTINCT substr({date_field},1,4) FROM gl_transactions ORDER BY 1")
-        ] if date_field in CAMPOS_FECHA else []
+        ] if date_field in DATE_FIELDS else []
     # Recorded BEFORE the defaults fill them in: which years the caller actually named
     # is the difference between a year that was taken and one that was given, and the
     # decision below has to say which happened.
@@ -1203,7 +1203,7 @@ def consolidated_spend(eje, year=None, quarter=3, date_field="accrual_date"):
     }
 
 
-RUTINAS = {
+ROUTINES = {
     "opex_by_cost_centre": opex_by_cost_centre,
     "largest_vendors": largest_vendors,
     "budget_variance": budget_variance,
@@ -1254,9 +1254,9 @@ def _comprobar_ruta(nombre, trace):
 
 def run(nombre, con, datos_dir=None, dataset=None, **params):
     """Run one plan by name. Returns the Trace, with no answer written yet."""
-    if nombre not in RUTINAS:
-        falta = sorted(set(PLANS) - set(RUTINAS))
-        raise KeyError(f"no routine for '{nombre}'. Available: {sorted(RUTINAS)}. "
+    if nombre not in ROUTINES:
+        falta = sorted(set(PLANS) - set(ROUTINES))
+        raise KeyError(f"no routine for '{nombre}'. Available: {sorted(ROUTINES)}. "
                        f"Declared in plans.py but not built yet: {falta}")
 
     trace = Trace(PLANS[nombre]["question"], dataset=dataset, con=con)
@@ -1264,7 +1264,7 @@ def run(nombre, con, datos_dir=None, dataset=None, **params):
     if datos_dir is None and trace.source and trace.source["path"]:
         datos_dir = Path(trace.source["path"])
 
-    hallazgos = RUTINAS[nombre](Ejecucion(con, datos_dir, trace), **params)
+    hallazgos = ROUTINES[nombre](Ejecucion(con, datos_dir, trace), **params)
     trace.findings = {k: v for k, v in hallazgos.items() if k != "status"}
     trace.finish(None, hallazgos["status"])
     _comprobar_ruta(nombre, trace)

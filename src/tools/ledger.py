@@ -20,7 +20,7 @@ convert_currency's job, and keeping them apart is what stops a missing rate from
 disappearing inside a subtotal.
 """
 
-CAMPOS_FECHA = ("accrual_date", "posting_date")
+DATE_FIELDS = ("accrual_date", "posting_date")
 
 # Only these columns may group or filter. Not injection paranoia - the values are
 # parameterised anyway - but because a closed list turns a mistyped column name into
@@ -61,8 +61,8 @@ def query_ledger(con, date_from=None, date_to=None, accounts=None, group_by=(),
     Returns one row per group PER CURRENCY, always. Feed them to convert_currency
     to get a single figure - and to be told what could not be converted.
     """
-    if date_field not in CAMPOS_FECHA:
-        raise ValueError(f"date_field must be one of {CAMPOS_FECHA}")
+    if date_field not in DATE_FIELDS:
+        raise ValueError(f"date_field must be one of {DATE_FIELDS}")
     for d in tuple(group_by) + tuple(filtros):
         if d not in DIMENSIONES:
             raise ValueError(f"unknown dimension '{d}'; allowed: {DIMENSIONES}")

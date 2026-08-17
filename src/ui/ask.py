@@ -49,10 +49,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from src.agent.model import Budget, cargar_env                    # noqa: E402
-from src.agent.router import anotar, elegir                       # noqa: E402
-from src.agent.run import RUTINAS, run                            # noqa: E402
-from src.agent.writer import redactar                             # noqa: E402
+from src.agent.model import Budget, load_env                       # noqa: E402
+from src.agent.router import annotate, choose                      # noqa: E402
+from src.agent.run import ROUTINES, run                            # noqa: E402
+from src.agent.writer import compose                               # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 
@@ -60,7 +60,7 @@ RAIZ = Path(__file__).resolve().parent.parent.parent
 def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m src.ui.ask", description=__doc__.split("\n")[0])
     p.add_argument("question", nargs="*", help="the question, in plain English")
-    p.add_argument("--plan", help=f"run a plan by name with no model: {', '.join(RUTINAS)}")
+    p.add_argument("--plan", help=f"run a plan by name with no model: {', '.join(ROUTINES)}")
     p.add_argument("--param", action="append", default=[], metavar="k=v",
                    help="parameter for --plan; repeatable")
     p.add_argument("--db", default="data.db", help="database file (default: data.db)")
@@ -76,7 +76,7 @@ def main(argv=None):
     if not pregunta and not a.plan:
         p.error("give a question, or --plan <name>")
 
-    cargar_env()
+    load_env()
     if a.model:
         os.environ["MODEL_NAME"] = a.model
     if a.base_url:
@@ -89,20 +89,20 @@ def main(argv=None):
     presupuesto = Budget()
 
     if a.plan:
-        if a.plan not in RUTINAS:
-            sys.exit(f"'{a.plan}' is not a plan. Available: {', '.join(RUTINAS)}")
+        if a.plan not in ROUTINES:
+            sys.exit(f"'{a.plan}' is not a plan. Available: {', '.join(ROUTINES)}")
         # Everything arrives as text and stays as text: turning '6000' into an integer
         # stops it matching a TEXT column - zero rows, and not one warning.
         params = dict(x.split("=", 1) for x in a.param if "=" in x)
         trace = run(a.plan, con, dataset=db.name, **params)
     else:
-        eleccion = elegir(pregunta, con, presupuesto, RUTINAS)
+        eleccion = choose(pregunta, con, presupuesto, ROUTINES)
         if not eleccion["plan"]:
             print(f'question:  "{pregunta}"\n\nNO PLAN\n  {eleccion["why"]}')
             return 1
         trace = run(eleccion["plan"], con, dataset=db.name, **eleccion["params"])
         trace.question = pregunta
-        anotar(trace, eleccion)
+        annotate(trace, eleccion)
 
     # --plan runs with no model unless prose was asked for explicitly: the claim this
     # repository makes is "real computation, testable without the model", and that has
@@ -110,7 +110,7 @@ def main(argv=None):
     # the writer.
     escribir = a.writer if a.plan else not a.no_writer
     if escribir:
-        redactar(trace, presupuesto)
+        compose(trace, presupuesto)
 
     # Written before it is printed, not after. The run that is worth keeping is
     # the one that went wrong, and that is exactly the run whose printing can
