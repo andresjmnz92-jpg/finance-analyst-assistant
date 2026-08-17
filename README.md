@@ -166,7 +166,7 @@ own, and nobody should discover that by accident.
   columns that exist. Measured, then cut on purpose.
 - **The cost in the trace is always `$0.00`, and that is not a measurement.** `Model.ask` takes the
   per-million prices as arguments defaulting to zero and nothing supplies them, so the money ceiling
-  described in [`ARCHITECTURE.md`](ARCHITECTURE.md) can never fire. The call count and the token
+  described in [`JOURNAL.md`](JOURNAL.md) can never fire. The call count and the token
   count are real; the money is not. The trace also does not record which model produced the tokens.
 - `duplicate_payments` prints vendor codes where it should print names.
 - The fixture has one internal document instead of four, no cost centre rename and no credit notes.
@@ -183,3 +183,10 @@ evals/          the checks that run, and the fixture with its expected answers
 traces/         sample runs, committed
 data/           Meridian's five CSVs and four documents
 ```
+
+**A fourth document you did not ask for.** The brief asks for one page each of
+[`ARCHITECTURE.md`](ARCHITECTURE.md) and [`NOTES.md`](NOTES.md); those two are the answer.
+[`JOURNAL.md`](JOURNAL.md) is where the material that answers neither went — the spend ceilings,
+the measured-versus-asserted table, the evidence behind the claims. Nothing in it is needed to
+understand the other two. It exists because deleting a measurement to hit a page count is the
+wrong kind of tidy.
