@@ -30,18 +30,24 @@ of the prompt is making it impossible to break, not writing it down elsewhere.
 THE ONE RULE THAT STAYS A REQUEST, AND ITS GUARD
 The paragraph may still contain a figure, so it can still contain a wrong one.
 Every number it writes is checked against the numbers present in the findings and
-the notes; anything else is a fabrication and the answer is rejected and asked
-for again, once, naming what it broke.
+the notes. A figure that is in neither is ANNOTATED above the answer, naming what
+could not be verified. It is not deleted and the answer is not asked for again.
 
-The guard's limit, stated because it is real: budget_variance offers 274 distinct
-numbers. Checking membership proves a figure CAME FROM the data. It does not
-prove the figure belongs in the sentence it is sitting in - a total copied
-correctly and attached to the wrong vendor passes. That is semantic and it is not
-closed here.
+That is a correction, and the reason is in ARCHITECTURE.md: the first version
+rejected the paragraph and retried twice, and it was wrong all three times it
+fired - over a truncated figure, a correct sign, and the numerals in a bulleted
+list. A guard that is wrong deletes correct answers and spends two model calls
+doing it. Detection over prose is a heuristic, so it adds rather than removes.
 
-WHEN THE GUARD FAILS TWICE
-The answer becomes the figures and the caveats with the failure printed above
-them. The floor of this system is correct and ugly, never fluent and unchecked.
+The guard's limit, stated because it is real: a single plan offers hundreds of
+distinct numbers to match against. Checking membership proves a figure CAME FROM
+the data. It does not prove the figure belongs in the sentence it is sitting in -
+a total copied correctly and attached to the wrong vendor passes. That is
+semantic and it is not closed here.
+
+THE FLOOR
+Figures and caveats are printed from the findings by code, whatever the model
+writes. The floor of this system is correct and ugly, never fluent and unchecked.
 """
 
 import json

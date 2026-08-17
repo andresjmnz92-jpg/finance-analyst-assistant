@@ -19,8 +19,10 @@ the same eight questions over a small hand-built fixture whose answers are known
 in advance (evals/fixtures/EXPECTED.md). If the loader needed a special case for
 either one, that would already be the bug.
 
-Rebuilt from data/ every time, so meridian.db is gitignored. Nothing here is
-clever on purpose: five tables, one index set, and a row count you can check.
+The database is named after the folder it came from - data/ becomes data.db,
+evals/fixtures/ becomes fixtures.db - and both are rebuilt every time, so every
+.db is gitignored. Nothing here is clever on purpose: five tables, one index set,
+and a row count you can check.
 
 WHY SQLITE AND NOT PANDAS
 Every one of the eight questions is filter, group, sum. That is SQL. SQLite ships

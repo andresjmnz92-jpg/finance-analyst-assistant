@@ -20,12 +20,19 @@ question and pick one. What the model does not do is invent the path at runtime.
 
 WHERE THE MODEL STILL EARNS ITS PLACE
   - reading an English question and choosing the plan and its parameters
-  - reading a policy document and turning it into checkable rules (Q6)
+  - supplying ONE number for Q6, the approval threshold. It does not turn the
+    policy into rules: the plan then searches the documents for that figure and
+    says whether the rule is the policy's or the caller's. run.py says the same
+    thing in the decision it emits - "turning policy text into checkable rules is
+    a reading this plan does not take"
   - writing the answer, carrying every caveat the tools returned
 
-WHAT IS BEING MEASURED, NOT ASSERTED
-For Q4, Q5 and Q6 a model-driven variant is built as well and both are run. If the
-model version does better, that is the version that ships and the number says why.
+WHAT IS MEASURED, AND WHAT IS NOT
+Every plan runs over two datasets in evals/eight.py, and each must_declare below
+is checked against the trace by a named emitter. What is NOT here, though an
+earlier version of this docstring claimed it: there is no model-driven variant of
+any plan, and nothing runs two versions of anything and compares them. RUTINAS in
+run.py holds one function per plan, and that is the whole of it.
 """
 
 # Each plan declares which tools it uses, in what order, and which ambiguities
@@ -83,7 +90,10 @@ PLANS = {
         # ten orders half the money while sounding like it ordered all of it.
         "must_declare": ["the vendor grouping applied", "catch-all vendors", "the FX basis",
                          "the period covered", "spend with no vendor"],
-        "model_decides": ["whether to accept each proposed vendor grouping"],
+        # Nothing. normalize_vendors PROPOSES the groupings and this plan ACCEPTS
+        # them, in code, stating the criterion - see the decision it emits in
+        # run.py. The signature has no parameter the model could decide it with.
+        "model_decides": [],
     },
     "budget_variance": {
         "question": "Which cost centers came in worst against budget in Q3, and what "
@@ -93,14 +103,16 @@ PLANS = {
         "must_declare": ["worst by value or by percent", "two budget sets",
                          "unconverted rows by centre", "which sign flips because of them",
                          "centres with only one side of the comparison"],
-        "model_decides": [],           # la variante con modelo elige el segundo desglose
+        "model_decides": [],
     },
     "policy_breaches": {
         "question": "Which transactions look like they breached our T&E policy?",
         "tools": ["read_document", "resolve_accounts", "query_ledger", "convert_currency"],
         "must_declare": ["which policy rules are checkable with these columns",
                          "which are not"],
-        "model_decides": ["turning the policy text into rules"],
+        # One number, not a reading. The plan then looks for that figure in the
+        # documents and says whose rule it is - the policy's or the caller's.
+        "model_decides": ["the approval threshold, as a single figure"],
     },
     "cost_per_fte": {
         "question": "What's our headcount cost per FTE?",

@@ -9,10 +9,15 @@ invisible against Meridian and appears against data shaped differently - which i
 what the brief says will happen. Fixing them produced guard code that NOTHING
 exercises, because the data in this repository cannot reach it.
 
-Untested guard code is a comment with a semicolon. So each case is reproduced
+Untested guard code is a comment with a semicolon. So the cases are reproduced
 here by mutating a COPY of the fixture: a budget line set to zero, a ledger row
 in a currency that has no rate at all, a year nobody has data for. The copy is
 temporary and the fixture on disk is never touched.
+
+FOUR OF THE SIX, NOT SIX. COMPROBACIONES below holds four checks and the command
+prints "4 guard(s) exercised". Two of the six defects have no guard here, and
+saying "each case is reproduced" while shipping four is the same class of claim
+this file exists to stop. Counted, not remembered.
 
 The other half of the reason: asked how the earlier fixes had been verified, the
 honest answer was that the edge cases were written after the fix, checked once in

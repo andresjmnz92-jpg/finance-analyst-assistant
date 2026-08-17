@@ -22,7 +22,7 @@ WHAT THE CODE REFUSES TO LET IT DO
 
 The last one is the reason the router hands over a CODE and not a name: the
 validation already exists and did not have to be written twice. The model picks
-from list_account_names, which is the whole chart - 33 names and 633 characters
+from list_account_names, which is the whole chart - 33 names and 1,219 characters
 against Meridian - so choosing is reading, not remembering.
 
 WHY THE PARAMETERS ARE FILTERED RATHER THAN TRUSTED

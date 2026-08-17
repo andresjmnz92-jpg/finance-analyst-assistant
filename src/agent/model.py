@@ -17,9 +17,16 @@ change. Defaults point at Google AI Studio's free tier, which the brief names.
     MODEL_BASE_URL   default: Gemini's OpenAI-compatible endpoint
     MODEL_NAME       default: gemini-3.6-flash
 
-Flash, not Pro, and that is measured rather than preferred: Gemini 2.5 Pro's free
-tier allows 5 requests per minute and 50 per day. The eval suite alone is eight
-questions across two datasets in two variants - well past 50.
+Flash, not Pro, because of the free tier's daily cap: Gemini 2.5 Pro allows 5
+requests per minute and 50 per day. What spends that cap is development, not the
+suites - the three eval commands make NO model calls at all, by design. A question
+costs 2 calls, one to route and one to write, so a single hand sweep of the eight
+questions is 16, and iterating on a prompt reaches 50 in an afternoon.
+
+An earlier version of this paragraph justified the choice with "the eval suite
+alone is eight questions across two datasets in two variants". Both halves were
+false: the suite calls no model, and there is no second variant anywhere in this
+repository. The conclusion survives; the arithmetic behind it did not.
 
 THE CEILING
 "Every loop has a ceiling - steps, tokens, and money." A Budget instance carries

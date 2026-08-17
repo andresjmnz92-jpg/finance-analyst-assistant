@@ -2,7 +2,7 @@
 
     python -m src.ui.ask "What did we spend on operating expenses in Q2, by cost center?"
     python -m src.ui.ask "Did we pay anyone twice?" --db fixtures.db --save
-    python -m src.ui.ask --plan cost_per_fte root=6100        # no model at all
+    python -m src.ui.ask --plan cost_per_fte --param root=6100    # no model at all
 
 WHAT IT PRINTS, AND WHY IT PRINTS ALL OF IT
 The brief asks for an interface that "must show the work, not just the

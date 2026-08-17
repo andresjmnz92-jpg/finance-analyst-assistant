@@ -47,7 +47,8 @@ def list_account_names(con, as_of):
     it cannot invent an account: resolve_accounts refuses a code that is not in
     this list, or not in force on this date.
 
-    Meridian's whole chart is 33 names and 633 characters, so showing it costs
+    Meridian's whole chart is 33 names and 1,219 characters as the router lays it
+    out, code plus name plus parent per line, so showing it costs
     almost nothing. A chart too large to show would need a different answer, and
     that is stated rather than pretended.
     """
