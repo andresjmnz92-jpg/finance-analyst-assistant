@@ -54,37 +54,28 @@ no name rule resolves. A fixture where everything passes is not measuring anythi
 
 ## Where the AI got it wrong, and how I noticed
 
-**An adversarial review of the whole repository found 20 defects, and not one of them fires against
-your data.** They fire against data shaped differently — which is exactly what you say you will do.
+**Four reviews, and my own verification found nothing in any of them.** That is the finding, and it
+repeats: every defect below was caught by someone who had not written the code.
 
-- Two payments of the same magnitude in different currencies reported as one payment made twice,
-  because the match key omitted currency and every Meridian entity is single-currency.
-- Two companies sharing a cost centre code reported as conflicting budget versions, because the
-  partition omitted entity.
-- A conversion to any currency other than USD returning a USD figure with the wrong label.
+- **20 defects, and not one fires against your data.** They fire against data shaped differently,
+  which is what you say you will do: a match key without currency, a partition without entity, a
+  conversion to a non-USD currency labelled USD. Worst of them, several tools stated **Meridian's
+  own measurements as fact** inside notes that travel into the answer — all true here, all
+  fabricated anywhere else. `evals/no_borrowed_facts.py` exists because of that one.
+- **6 more that afternoon**, from three agents rather than me. **Four have a guard in
+  `evals/guards.py`; two do not** — and I wrote "each case is reproduced here" in that docstring
+  while shipping four. I found it by counting, which is the whole point of this section.
+- **The answers graded by someone other than me: two of five failed.** Not on a figure — content
+  the code had already computed sat in the findings as a raw key and never reached a sentence. The
+  vendor ranking lived only inside the model's paragraph, and 46% of spend having no vendor at all
+  was a number nobody said out loud. Both are printed by code now.
+- **The fourth review found wrong figures in your data.** It is below, because the method is the
+  part worth reading.
 
-Worst of all: several tools stated **Meridian's own measurements as fact** inside the notes that
-travel into the final answer. All true here. All fabricated against any other dataset. The code
-refused to guess about data it could not see, and then quoted figures from a file that was not
-loaded.
-
-Three smaller ones, each invisible until something specific was measured:
-
-| What was wrong | How it surfaced |
-| --- | --- |
-| `convert_currency` reported *"1 row worth 1,231,309 EUR could not be converted"*. The amount was right; the count was 147 | Calling the same tool two ways and comparing |
-| The first live model call returned HTTP 200 and an empty string | `finish_reason: length`. Reasoning tokens count against `max_tokens` and appear in neither `prompt_tokens` nor `completion_tokens` — my ceiling saw 9 where the provider counted 106 |
-
-Those twenty were one review; a second one that afternoon — three agents rather than me, because
-my own verification had found none of the twenty — turned up six different ones, each re-measured
-here before it was accepted. **Four of those six have a guard in `evals/guards.py`; two do not.**
-I wrote "each case is reproduced here" in that file's docstring while shipping four, which is the
-same class of claim this whole section is about, and I only found it by counting.
-
-**And at the end, the answers themselves were graded by someone other than me. Two of five failed** —
-not on a figure, but because content the code had already computed sat in the findings as a raw key
-and never reached a sentence. The vendor ranking existed only inside the model's paragraph, and 46%
-of spend having no vendor at all was a number nobody said out loud. Both are now printed by code.
+One technical trap from those rounds, kept because a design decision rests on it: the first live
+model call returned HTTP 200 and an empty string. Reasoning tokens count against `max_tokens` and
+appear in neither `prompt_tokens` nor `completion_tokens` — my ceiling saw 9 where the provider
+counted 106. The ceiling counts `total_tokens` because of it.
 
 ### The review that found the wrong numbers: four readers who could not see each other
 
@@ -215,17 +206,29 @@ honest comparison is **which caveats each one dropped**, not which totals differ
 
 ## Roughly how long
 
-**9.7 hours of active work**, measured rather than estimated: I read the timestamps of the working
-session and discarded every gap over twenty minutes.
+**About 14 hours**, against the 10–12 the brief suggests. Timestamps of the working session, every
+gap over twenty minutes discarded.
 
 | | window | active |
 | --- | --- | --- |
 | Fri 14 Aug, evening | 16:42–21:34 | **2.3 h** |
 | Sat 15 Aug | 09:27–19:37 | **7.4 h** |
+| Sun 16 Aug | 13:24–19:38 | **~4.5 h** |
 
-Roughly two of those hours went on analysis before a line of code existed — writing the eight
-expected answers, opening the CSVs, finding the traps. It felt like not working and it is the only
-part that could not have been recovered later.
+The last row is the one I am least sure of, so here is its floor: applying the same rule to this
+repository's own commit timestamps gives **2.1 h** for Sunday. That number is too low and the
+reason is visible in the table above it — **Friday produced 2.3 hours of work and zero commits**,
+because it was spent writing the eight expected answers and finding the traps in the CSVs. A commit
+records when work was saved, not how long it took, and Sunday was mostly reviewing and deciding.
+
+**The third day built nothing.** It went entirely on the review below and on the fixes it produced:
+three wrong figures in your data, nine claims in the documents that were not true, and a design of
+mine that a fresh agent killed before it was written. I am over your range and I would rather say
+so than round down the one number in this repository nobody can check.
+
+Roughly two of the first day's hours went on analysis before a line of code existed — writing the
+eight expected answers, opening the CSVs, finding the traps. It felt like not working and it is the
+only part that could not have been recovered later.
 
 ## What I would do with two more days
 
