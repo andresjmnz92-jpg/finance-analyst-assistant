@@ -106,10 +106,23 @@ class Trace:
 
     # -- the two ways of reading the same notebook -------------------------------
 
+    @staticmethod
+    def _sin_ruta_local(source):
+        """The trace names WHICH dataset was loaded, never where the author keeps it.
+
+        The provenance field exists because an answer once quoted a file that was
+        not loaded, and the folder name carries that whole job: `data` is Meridian,
+        `fixtures` is Tessera. The absolute path adds nothing to it and rides along
+        with every committed trace into a public repository.
+        """
+        if not source or not source.get("path"):
+            return source
+        return {**source, "path": Path(source["path"]).name}
+
     def as_dict(self):
         return {
             "question": self.question, "plan": self.plan, "dataset": self.dataset,
-            "source": self.source, "status": self.status, "answer": self.answer,
+            "source": self._sin_ruta_local(self.source), "status": self.status, "answer": self.answer,
             "decisions": self.decisions, "findings": self.findings,
             "steps": self.steps, "model": {**self.model, "usd": round(self.model["usd"], 6)},
             "seconds": round(time.time() - self.started, 2),

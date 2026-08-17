@@ -3,7 +3,7 @@
   "plan": "consolidated_spend",
   "dataset": "data.db",
   "source": {
-    "path": "C:\\Proyectos\\Buscar Trabajo\\Keyrus\\finance-analyst-assistant\\data",
+    "path": "data",
     "ledger_rows": 10916
   },
   "status": "PARTIAL",
