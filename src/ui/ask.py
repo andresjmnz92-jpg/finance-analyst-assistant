@@ -13,13 +13,16 @@ can re-run the statement that made it without asking anyone.
 
 THREE WAYS TO RUN, AND THE MIDDLE ONE IS THE POINT
 
-    --plan <name>     runs a plan by name with NO model. Every figure in this
-                      repository can be produced this way, which is what "real
-                      computation, testable without the model" means.
+    --plan <name>     runs a plan by name with NO model at all - every figure in
+                      this repository can be produced this way, which is what
+                      "real computation, testable without the model" means. Add
+                      --writer to also spend one model call writing a paragraph
+                      over it.
     (a question)      the model reads the question, names a plan and fills its
                       parameters; the code validates both and runs it; the model
                       then writes one paragraph over figures it did not compute.
-    --no-writer       routes and runs, then prints the figures without prose.
+    --no-writer       routes and runs a question, then prints the figures
+                      without prose.
 
 CREDENTIALS ARE YOURS
 MODEL_API_KEY comes from the environment or a .env that is not in this
@@ -62,6 +65,8 @@ def main(argv=None):
                    help="parameter for --plan; repeatable")
     p.add_argument("--db", default="data.db", help="database file (default: data.db)")
     p.add_argument("--no-writer", action="store_true", help="figures only, no prose")
+    p.add_argument("--writer", action="store_true",
+                   help="spend a model call writing prose over --plan (off by default)")
     p.add_argument("--save", action="store_true", help="write the trace to traces/")
     p.add_argument("--model", help="overrides MODEL_NAME")
     p.add_argument("--base-url", help="overrides MODEL_BASE_URL")
@@ -99,13 +104,23 @@ def main(argv=None):
         trace.question = pregunta
         anotar(trace, eleccion)
 
-    if not a.no_writer:
+    # --plan runs with no model unless prose was asked for explicitly: the claim this
+    # repository makes is "real computation, testable without the model", and that has
+    # to hold for every plan, not just the ones that happen to refuse before reaching
+    # the writer.
+    escribir = a.writer if a.plan else not a.no_writer
+    if escribir:
         redactar(trace, presupuesto)
 
     # Written before it is printed, not after. The run that is worth keeping is
     # the one that went wrong, and that is exactly the run whose printing can
     # fail - so saving second lost the evidence in the only case that needed it.
-    guardado = trace.save(RAIZ / "traces") if a.save else None
+    #
+    # The name carries the dataset too, not just the plan. traces/duplicate_payments.json
+    # is committed evidence from data.db; saving a run against fixtures.db under the same
+    # bare name overwrote it silently - 10,916 ledger rows replaced by 18, no warning.
+    nombre = f"{trace.plan}.json" if db.name == "data.db" else f"{trace.plan}__{db.stem}.json"
+    guardado = trace.save(RAIZ / "traces", nombre=nombre) if a.save else None
     print(trace.render())
     if guardado:
         print(f"\ntrace written to {guardado}")

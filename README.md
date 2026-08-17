@@ -52,6 +52,9 @@ python -m src.ui.ask --plan cost_per_fte --param root=6100
 python -m src.ui.ask "Did we pay anyone twice?" --db fixtures.db --save
 ```
 
+The model is optional either way: add `--no-writer` to a question to print the figures with no
+model call, or `--writer` to a `--plan` run to spend one on a paragraph over it.
+
 The eight plans: `opex_by_cost_centre`, `spend_comparison`, `consolidated_spend`,
 `largest_vendors`, `budget_variance`, `policy_breaches`, `cost_per_fte`, `duplicate_payments`.
 
