@@ -36,6 +36,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+# The paragraph is written by a model, and models write typographic punctuation:
+# a non-breaking hyphen in "2024-2023", an en dash between two figures. Windows
+# consoles default to cp1252, which has neither, so printing the trace raised
+# UnicodeEncodeError and killed the run - on whichever questions the model
+# happened to reach for one, since this provider refuses temperature=0 and no two
+# runs write the same prose. errors="replace" rather than plain utf-8: a terminal
+# that cannot render a character should show a placeholder, never end the run.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from src.agent.model import Budget, cargar_env                    # noqa: E402
 from src.agent.router import anotar, elegir                       # noqa: E402
 from src.agent.run import RUTINAS, run                            # noqa: E402

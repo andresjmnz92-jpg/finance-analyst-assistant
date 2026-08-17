@@ -1,0 +1,244 @@
+{
+  "question": "What did we spend on operating expenses in Q2, by cost center?",
+  "plan": "opex_by_cost_centre",
+  "dataset": "data.db",
+  "source": {
+    "path": "data",
+    "ledger_rows": 10916
+  },
+  "status": "COMPLETE",
+  "answer": "For Q2 2024 (root 6000), operating expenses by cost centre were: OPS-EU $2,503,945.38; OPS-NA $2,096,018.97; ENG-EU $1,521,708.71; OPS-CA $1,512,779.22; ENG-US $1,254,870.59; SGA-EU $1,234,406.24; SGA-US $1,063,887.61; MKT-US $853,906.97; SGA-CA $739,198.09, totaling $12,780,721.78 USD.\n\nFIGURES\n  period: Q2 2024\n  root: 6000\n  windows:\n    1. from=2024-04-01, to=2024-06-30, accounts=24\n  by_cost_centre: OPS-EU=2,503,945.38, OPS-NA=2,096,018.97, ENG-EU=1,521,708.71, OPS-CA=1,512,779.22, ENG-US=1,254,870.59, SGA-EU=1,234,406.24, SGA-US=1,063,887.61, MKT-US=853,906.97, SGA-CA=739,198.09\n  by_cost_centre_bounds: \n  ranking_reliable: True\n  total: 12,780,721.78\n  currency: USD\n  ledger_rows: 1393\n  excluded: []\n\nWHAT THIS ANSWER DEPENDS ON\n  The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.\n  The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 'Q2'}. Reason given: User requested operating expenses by cost center for Q2, so I selected the Operating Expenses rollup (6000) and Q2..\n  Model compatibility: max_tokens renamed to max_completion_tokens.\n  Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.\n  1 account(s) have more than one validity window: 6230. This answer is correct for 2024-04-01 only. 6230 is inside this rollup, so a query spanning a period must resolve per transaction date, not once for the period.\n  Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.\n  Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.\n  fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month.",
+  "decisions": [
+    "The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.",
+    "The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 'Q2'}. Reason given: User requested operating expenses by cost center for Q2, so I selected the Operating Expenses rollup (6000) and Q2..",
+    "Model compatibility: max_tokens renamed to max_completion_tokens.",
+    "Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic."
+  ],
+  "findings": {
+    "period": "Q2 2024",
+    "root": "6000",
+    "windows": [
+      {
+        "from": "2024-04-01",
+        "to": "2024-06-30",
+        "accounts": 24
+      }
+    ],
+    "by_cost_centre": {
+      "OPS-EU": 2503945.38,
+      "OPS-NA": 2096018.97,
+      "ENG-EU": 1521708.71,
+      "OPS-CA": 1512779.22,
+      "ENG-US": 1254870.59,
+      "SGA-EU": 1234406.24,
+      "SGA-US": 1063887.61,
+      "MKT-US": 853906.97,
+      "SGA-CA": 739198.09
+    },
+    "by_cost_centre_bounds": {
+      "ENG-EU": {
+        "converted": 1521708.71,
+        "at_least": 1521708.71,
+        "at_most": 1521708.71
+      },
+      "ENG-US": {
+        "converted": 1254870.59,
+        "at_least": 1254870.59,
+        "at_most": 1254870.59
+      },
+      "MKT-US": {
+        "converted": 853906.97,
+        "at_least": 853906.97,
+        "at_most": 853906.97
+      },
+      "OPS-CA": {
+        "converted": 1512779.22,
+        "at_least": 1512779.22,
+        "at_most": 1512779.22
+      },
+      "OPS-EU": {
+        "converted": 2503945.38,
+        "at_least": 2503945.38,
+        "at_most": 2503945.38
+      },
+      "OPS-NA": {
+        "converted": 2096018.97,
+        "at_least": 2096018.97,
+        "at_most": 2096018.97
+      },
+      "SGA-CA": {
+        "converted": 739198.09,
+        "at_least": 739198.09,
+        "at_most": 739198.09
+      },
+      "SGA-EU": {
+        "converted": 1234406.24,
+        "at_least": 1234406.24,
+        "at_most": 1234406.24
+      },
+      "SGA-US": {
+        "converted": 1063887.61,
+        "at_least": 1063887.61,
+        "at_most": 1063887.61
+      }
+    },
+    "ranking_reliable": true,
+    "total": 12780721.78,
+    "currency": "USD",
+    "ledger_rows": 1393,
+    "excluded": []
+  },
+  "steps": [
+    {
+      "n": 1,
+      "tool": "resolve_accounts",
+      "args": {
+        "root": "6000",
+        "as_of": "2024-04-01"
+      },
+      "summary": [
+        "root: 6000",
+        "as_of: 2024-04-01",
+        "leaves: 24 item(s)",
+        "rollup_nodes: 8 item(s)"
+      ],
+      "notes": [
+        "1 account(s) have more than one validity window: 6230. This answer is correct for 2024-04-01 only. 6230 is inside this rollup, so a query spanning a period must resolve per transaction date, not once for the period."
+      ],
+      "sql": [
+        {
+          "statement": "\n    WITH RECURSIVE tree(code) AS (\n        SELECT account_code FROM chart_of_accounts\n         WHERE account_code = ? AND ? BETWEEN valid_from AND valid_to\n      UNION\n        SELECT c.account_code FROM chart_of_accounts c JOIN tree t ON c.parent_code = t.code\n         WHERE ? BETWEEN c.valid_from AND c.valid_to\n    )\n    SELECT DISTINCT code FROM tree\n    ",
+          "params": [
+            "6000",
+            "2024-04-01",
+            "2024-04-01"
+          ]
+        }
+      ],
+      "seconds": 0.0
+    },
+    {
+      "n": 2,
+      "tool": "query_ledger",
+      "args": {
+        "date_from": "2024-04-01",
+        "date_to": "2024-06-30",
+        "accounts": [
+          "6110",
+          "6120",
+          "6130",
+          "6210",
+          "6220",
+          "6230",
+          "6240",
+          "6310",
+          "6320",
+          "6330",
+          "6410",
+          "6420",
+          "6430",
+          "6510",
+          "6520",
+          "6530",
+          "6610",
+          "6620",
+          "6630",
+          "6710",
+          "6720",
+          "6810",
+          "6820",
+          "6830"
+        ],
+        "group_by": [
+          "cost_centre"
+        ],
+        "date_field": "accrual_date"
+      },
+      "summary": [
+        "rows: 27 item(s)",
+        "row_count: 1393",
+        "date_field: accrual_date"
+      ],
+      "notes": [
+        "Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.",
+        "Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency."
+      ],
+      "sql": [
+        {
+          "statement": "SELECT cost_centre, currency, substr(accrual_date,1,7) AS period_month, ROUND(SUM(amount),2) AS amount, COUNT(*) AS rows FROM gl_transactions WHERE accrual_date >= ? AND accrual_date <= ? AND account_code IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) GROUP BY cost_centre, currency, period_month ORDER BY cost_centre, currency, period_month",
+          "params": [
+            "2024-04-01",
+            "2024-06-30",
+            "6110",
+            "6120",
+            "6130",
+            "6210",
+            "6220",
+            "6230",
+            "6240",
+            "6310",
+            "6320",
+            "6330",
+            "6410",
+            "6420",
+            "6430",
+            "6510",
+            "6520",
+            "6530",
+            "6610",
+            "6620",
+            "6630",
+            "6710",
+            "6720",
+            "6810",
+            "6820",
+            "6830"
+          ]
+        }
+      ],
+      "seconds": 0.013
+    },
+    {
+      "n": 3,
+      "tool": "convert_currency",
+      "args": {
+        "rows": "[27 item(s), not stored - see the SQL on the step that produced them]"
+      },
+      "summary": [
+        "rows: 27 item(s)",
+        "total: 12,780,721.78",
+        "currency: USD",
+        "rows_converted: 1393",
+        "groups_converted: 27",
+        "unconverted: []",
+        "rate_range: {\"CAD\": [0.69857, 0.75207], \"EUR\": [1.10152, 1.19998], \"USD\": [1.0, 1.0]}"
+      ],
+      "notes": [
+        "fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month."
+      ],
+      "sql": [
+        {
+          "statement": "SELECT period_month, currency, rate_to_usd FROM fx_rates",
+          "params": []
+        }
+      ],
+      "seconds": 0.0
+    }
+  ],
+  "model": {
+    "calls": 2,
+    "tokens": 3034,
+    "usd": 0.0
+  },
+  "seconds": 6.82,
+  "all_notes": [
+    "The question does not say which year. This file holds Q2 rows in 2023, 2024; the most recent (2024) was used, and the same plan answers any of them.",
+    "The question was routed to 'opex_by_cost_centre' with {'root': '6000', 'quarter': 'Q2'}. Reason given: User requested operating expenses by cost center for Q2, so I selected the Operating Expenses rollup (6000) and Q2..",
+    "Model compatibility: max_tokens renamed to max_completion_tokens.",
+    "Model compatibility: temperature=0.0 refused by this model; the provider default was used and the run is NOT deterministic.",
+    "1 account(s) have more than one validity window: 6230. This answer is correct for 2024-04-01 only. 6230 is inside this rollup, so a query spanning a period must resolve per transaction date, not once for the period.",
+    "Period assigned by accrual_date. Nothing in the pack says which date defines a period. In THIS file accrual_date spans 2023-01-01..2024-12-31 and posting_date spans 2023-01-01..2025-01-14. They differ, and 114 row(s) fall in a different year depending on which is used.",
+    "Rows span 3 currencies (CAD, EUR, USD) and are NOT summed here. Pass them through convert_currency.",
+    "fx_rates has one rate per month per currency and no column saying whether it is spot, average or closing. Applied as a month-average rate against the transaction's accrual month."
+  ]
+}
