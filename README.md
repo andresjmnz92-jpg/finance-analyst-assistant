@@ -63,17 +63,26 @@ figure, every caveat beside the step that raised it, what the model cost, and th
 ```
   step 2   convert_currency
            -> total: 10,003,879.96
-             ->! NOT CONVERTED - no rate on file for 1 month/currency combination(s),
-                 covering 147 rows: 147 ledger rows worth 1,231,309.12 EUR in 2024-09.
+             ->! NOT CONVERTED - no rate on file for 1 month/currency combination(s), covering 147 rows:
+                 147 ledger rows worth 1,231,309.12 EUR in 2024-09. Any total below excludes them and is
+                 therefore partial.
 
-  ->! Every year with Q3 data was totalled, not just the one reported: Q3 2023 =
-      10,580,182.40 COMPLETE. Only Q3 2023 can be totalled completely from this file.
+  ->! Every year with Q3 data was totalled, not just the one reported: Q3 2023 = 10,580,182.40
+      COMPLETE. Only Q3 2023 can be totalled completely from this file; the rest exclude rows
+      with no FX rate.
 
-  model:   2 call(s), 9,251 tokens
+  ->! Model compatibility: temperature=0.0 refused by this model; the provider default was
+      used and the run is NOT deterministic.
+
+  model:   2 call(s), 2,835 tokens, $0.0000
   status:  PARTIAL
 ```
 
-Sample runs are committed under [`traces/`](traces/).
+**That is one run, pasted whole, not assembled.** It is the run committed as
+[`traces/consolidated_spend.json`](traces/consolidated_spend.json), so every figure above can be
+checked against the file. An earlier version of this block was edited by hand and the only field
+missing from it was the `$0.0000` — see [Known limitations](#known-limitations) for why that zero
+is not a measurement.
 
 ## How to run the evals
 
