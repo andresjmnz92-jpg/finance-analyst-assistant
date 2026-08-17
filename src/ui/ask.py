@@ -102,9 +102,13 @@ def main(argv=None):
     if not a.no_writer:
         redactar(trace, presupuesto)
 
+    # Written before it is printed, not after. The run that is worth keeping is
+    # the one that went wrong, and that is exactly the run whose printing can
+    # fail - so saving second lost the evidence in the only case that needed it.
+    guardado = trace.save(RAIZ / "traces") if a.save else None
     print(trace.render())
-    if a.save:
-        print(f"\ntrace written to {trace.save(RAIZ / 'traces')}")
+    if guardado:
+        print(f"\ntrace written to {guardado}")
     con.close()
     return 0
 
