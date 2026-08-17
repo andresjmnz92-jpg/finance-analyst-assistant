@@ -18,7 +18,10 @@ question. They are properties of this file that a reviewer can check.
 
 **Where this is enforced:** each *must state* line below is an entry in `must_declare` in
 [`../src/agent/plans.py`](../src/agent/plans.py), and [`eight.py`](eight.py) fails if the trace
-does not carry its evidence, found through a named emitter. Twenty-six entries, all backed. What
+does not carry its evidence, found through a named emitter. Every entry is backed, and the runner
+fails if one is not — the count is deliberately not written here, because it changed twice while
+this file was being written and a stale count is the exact failure this repository keeps finding in
+itself. What
 no command judges is the written paragraph — that is still graded by reading it.
 
 ---
@@ -189,8 +192,14 @@ answers the question. A model picks one and sounds certain.
 
 ## 8. Did we pay anyone twice
 
-**Must do** — group by **business attributes**: same entity, centre, account, vendor and amount,
-**with the vendor normalised**, or the duplicated Nordwind payments escape.
+**Must do** — group by **business attributes**: same entity, centre, account, vendor and amount.
+
+**On normalising the vendor first: correct as a rule, and it changes nothing here.** An earlier
+version of this file claimed the duplicated Nordwind payments escape without it. They do not — every
+planted pair carries the *same* `vendor_id`, and no candidate group crosses two Nordwind variants.
+The run says so itself: *"Without them: 9 group(s). With them: 9 group(s)."* The step belongs in the
+plan because a dataset where one supplier is paid twice under two of its registrations is the case
+it exists for; it just is not this dataset, and saying otherwise was a claim nobody had counted.
 
 **And drop the date entirely.** Measured on this file:
 

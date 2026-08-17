@@ -127,11 +127,24 @@ sign of the budget variance for **43 centre/account pairs**, all three European 
 `Budget` carries three and refuses the call that would cross one, rather than truncating: **12
 model calls, 200,000 tokens, USD 0.50** per question.
 
-**Two of the three are live. The money one is not.** `Model.ask` takes the per-million prices as
-arguments defaulting to zero, and nothing in the repository supplies them, so the running cost is
-always `0.00` and the comparison against USD 0.50 can never be true. It is a ceiling that cannot see
-the spend, which is the exact failure the next paragraph says a ceiling must not have. Named here
-rather than left standing, because a reported zero reads as measured.
+**None of the three can fire in this design, and only one of those is a defect.**
+
+The **money** ceiling is broken: `Model.ask` takes the per-million prices as arguments defaulting to
+zero, nothing supplies them, so the running cost is always `0.00` and the comparison against USD
+0.50 can never be true. A ceiling that cannot see the spend is the exact failure the next paragraph
+says a ceiling must not have.
+
+The **step** and **token** ceilings are not broken — they are simply out of reach, and that is the
+architecture working. There is no tool loop: the model is called exactly twice per question, once to
+route and once to write, and once only when the plan refuses before the writer. Twelve calls cannot
+happen because two is the structural maximum; 200,000 tokens cannot happen because the largest of
+the eight runs is 9,757. The mechanism itself is sound — set `max_calls=2` and the third call is
+refused rather than truncated — so the ceilings are a net under a design that does not fall. **An
+agent with a free-running loop would need them; this one has them because the brief asks for them,
+and the honest thing is to say they have never fired.**
+
+Named here rather than left standing, because a reported zero reads as measured and an unfired
+ceiling reads as an enforced one.
 
 The cost evidence is the eight traces under [`traces/`](traces/), one per question, each from the
 English question rather than a plan name. **36,359 tokens for all eight**, from **1,239** to

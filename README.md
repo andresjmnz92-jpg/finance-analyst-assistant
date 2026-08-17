@@ -149,7 +149,7 @@ own, and nobody should discover that by accident.
 | ✅ The router | 8 of 8 questions to the right plan, with the right account code each time — measured by hand, two live sweeps during development; not automated here, because routing needs a model and the eval suites run without one |
 | ✅ The writer, the trace and the CLI | One model call to route, one to write; figures and caveats printed by code |
 | ✅ Three eval commands | `eight`, `no_borrowed_facts` and `guards` |
-| ✅ A runner over the eight questions | `python -m evals.eight`: 16 runs, statuses judged by coherence with their own evidence, all 26 `must_declare` entries backed by a named emitter |
+| ✅ A runner over the eight questions | `python -m evals.eight`: 16 runs, statuses judged by coherence with their own evidence, **every** `must_declare` entry backed by a named emitter — the runner fails if one is not |
 | ✅ The expected behaviour for Meridian's eight | [`evals/EXPECTED_MERIDIAN.md`](evals/EXPECTED_MERIDIAN.md): what each answer must state, must do and must not do — **no expected figures**, because Meridian is judged by behaviour. Every entry is an entry in `must_declare` |
 | ✅ Traces for all eight | One per question under [`traces/`](traces/), each from the English question. Two COMPLETE, five PARTIAL, one REFUSED — and the refusal costs one model call, not two |
 
