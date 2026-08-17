@@ -2,43 +2,61 @@
 
 *Written as the work happened, not reconstructed afterwards.*
 
+> **You asked for one page and this is longer.** Rather than delete the evidence, the working-out
+> behind five of these answers moved to [`JOURNAL.md`](JOURNAL.md), whole and unedited. What is
+> here is the answer; what is there is the proof, if you want it.
+
 ## How I used AI, and what I kept for myself
 
 I used Claude Code throughout — for the tools, the SQL, and most of the prose in this repository.
 What I did not delegate was the analysis. **Before any code existed I wrote out the expected
 behaviour for all eight questions by hand**, including the ones that should refuse, and every tool
-in `ARCHITECTURE.md` fell out of that document rather than being designed up front.
-
-That order mattered more than any prompt. Deciding what the answer should be, before knowing what
-the code would return, is the only reason several wrong answers were caught at all.
+in `ARCHITECTURE.md` fell out of that document rather than being designed up front. That order
+mattered more than any prompt: deciding what the answer should be, before knowing what the code
+would return, is the only reason several wrong answers were caught at all.
 
 Three decisions set the shape before anything was built: **attack it backwards** — write the eight
 expected answers first and derive the tools from them, which is why there is no `run_anything` tool;
 **do not open the data until the problem is understood**, because you end this brief with *"we'll ask
 you to walk through what you built"*; and **build a second dataset whose answers I already know**.
 
-Then, repeatedly, I overruled the model's design and the measurement said I was right to. These are
-the ones that changed the code:
+Then, repeatedly, I overruled the model's design and the measurement said I was right to. Seven of
+those changed the code; the three that mattered most:
 
-| I pushed back with | What it was worth, measured |
-| --- | --- |
-| *Let the model translate the question into accounts, not a string rule* | **"headcount" matches zero accounts** in this chart — they are called Personnel and Salaries & Wages. A text rule goes mute on question 7. And picking the wrong rollup is not an error, it is a plausible figure: root 6830 answers **91,015.92** where the answer is **12,780,721.78** |
-| *Then why not just hardcode the code?* | Forced the line I now work by: **shape is assumed, values are not**. The five tables and `rate_to_usd` are shape; an account code is a value, and your brief says the values change |
-| *Showing the work sounds like two tables, not one* | Your own criterion, and it holds: Nordwind is the largest vendor grouped and **does not reach the top ten split**, at number 15. The ranking is a decision, so both are printed |
-| *You are being too strict* | The figure guard was **deleting correct answers** over a truncated number, a correct sign and the numerals in a bulleted list. A guard that is wrong is worse than no guard: it now annotates instead of removing |
-| *Is that a data problem or an obedience problem?* | Deleted two of the writer's three rules. Both were patching data, and the paragraphs came out equivalent without them |
-| *Test it on a paid model too, not just the free one* | Found that **"OpenAI-compatible" is not one protocol** — and that a claim already published in this file was false |
-| *What if we narrowed it first instead of reading every memo?* | The bound is provable and **saves 13%**, measured, so it was not built. The intersection that matters is one line, not a stage |
+- *Let the model translate the question into accounts, not a string rule.* **"headcount" matches zero
+  accounts** in this chart — they are called Personnel and Salaries & Wages — and picking the wrong
+  rollup is not an error, it is a plausible figure: root 6830 answers **91,015.92** where the answer
+  is **12,780,721.78**.
+- *Showing the work sounds like two tables, not one.* Nordwind is the largest vendor grouped and
+  **does not reach the top ten split**, at number 15. The ranking is a decision, so both are printed.
+- *You are being too strict.* The figure guard was **deleting correct answers** over a truncated
+  number, a correct sign and the numerals in a bulleted list. It annotates now.
 
 The pattern is the same every time: the model's instinct was defensible and the measurement decided
-it. That is the working relationship, not a prompt.
+it. That is the working relationship, not a prompt. The other four are in the journal.
+
+## Which model, and why it barely matters
+
+**Gemini 3.6 Flash on Google AI Studio's free tier**, which you name as fine, then `gpt-5-mini` when
+the free tier stopped: **20 requests per day**, and one sweep of the eight questions is fifteen —
+two calls each except the refusal, which costs one.
+Worth knowing before planning an eval run around it.
+
+**"OpenAI-compatible" is not one protocol.** I wrote here that a provider swap was two environment
+variables, then swapped and got two HTTP 400s: `max_tokens` rejected in favour of
+`max_completion_tokens`, and `temperature` rejected for not supporting 0.0. The first is a rename.
+The second removes a design decision — temperature 0 is why the same question routes the same way
+twice — and that model does not offer it. `ask()` adapts to both and **records the adjustment on the
+answer**, because a run that could not be deterministic must not look like one that was.
+
+A stronger model cannot improve a single figure here, because the arithmetic never touches it. The
+honest comparison is **which caveats each one dropped**, not which totals differ.
 
 ## Something that worked well
 
 **The fixture in `evals/fixtures/`.** Eighteen rows, a flat 2.0 EUR rate, every figure worked out on
-paper before a tool existed, and every ambiguity in your data reproduced in miniature.
-
-It paid for itself twice.
+paper before a tool existed, and every ambiguity in your data reproduced in miniature. It paid for
+itself twice.
 
 **On day one it found six arithmetic errors of mine** — rows I had missed while adding up by hand.
 The data was not touched; my sums were corrected.
@@ -58,146 +76,76 @@ no name rule resolves. A fixture where everything passes is not measuring anythi
 repeats: every defect below was caught by someone who had not written the code.
 
 - **20 defects, and not one fires against your data.** They fire against data shaped differently,
-  which is what you say you will do: a match key without currency, a partition without entity, a
-  conversion to a non-USD currency labelled USD. Worst of them, several tools stated **Meridian's
-  own measurements as fact** inside notes that travel into the answer — all true here, all
-  fabricated anywhere else. `evals/no_borrowed_facts.py` exists because of that one.
-- **6 more that afternoon**, from three agents rather than me. **Four have a guard in
-  `evals/guards.py`; two do not** — and I wrote "each case is reproduced here" in that docstring
-  while shipping four. I found it by counting, which is the whole point of this section.
-- **The answers graded by someone other than me: two of five failed.** Not on a figure — content
-  the code had already computed sat in the findings as a raw key and never reached a sentence. The
+  which is what you say you will do. Worst of them, several tools stated **Meridian's own
+  measurements as fact** inside notes that travel into the answer — all true here, all fabricated
+  anywhere else. `evals/no_borrowed_facts.py` exists because of that one.
+- **6 more that afternoon.** Four have a guard in `evals/guards.py`; two do not — and I had written
+  *"each case is reproduced here"* in that docstring while shipping four. I found it by counting,
+  which is the whole point of this section.
+- **The answers graded by someone other than me: two of five failed.** Not on a figure — content the
+  code had already computed sat in the findings as a raw key and never reached a sentence. The
   vendor ranking lived only inside the model's paragraph, and 46% of spend having no vendor at all
   was a number nobody said out loud. Both are printed by code now.
-- **The fourth review found wrong figures in your data.** It is below, because the method is the
-  part worth reading.
+- **The fourth review found three wrong figures in your data**, and none of them raises an error —
+  all three print cleanly. A cost centre renamed mid-2024 that nothing mapped, so the worst
+  overspender was dropped from Q1 and Q2 entirely while the code inheriting its budget published
+  **−100%, "spent nothing"**, having spent 716,962.62. The by-centre answer ordered wrong at every
+  rate on file, because unconverted rows went into an aggregate and were never attributed to a
+  centre — in the one question that asks *by cost centre*. And a year compared against itself
+  counted twice.
 
-One technical trap from those rounds, kept because a design decision rests on it: the first live
-model call returned HTTP 200 and an empty string. Reasoning tokens count against `max_tokens` and
-appear in neither `prompt_tokens` nor `completion_tokens` — my ceiling saw 9 where the provider
-counted 106. The ceiling counts `total_tokens` because of it.
+That last review was four agents reading at once, **none of them shown the others' findings**. Blind
+and parallel buys one thing sequential does not: when two report the same defect independently, the
+agreement means something. The method, and the design of mine that a fresh agent killed before it
+was written, are in [`JOURNAL.md`](JOURNAL.md).
 
-### The review that found the wrong numbers: four readers who could not see each other
-
-The reviews above were sequential, and each one inherited what the last had concluded. The final
-one was not. **Four agents read the repository at the same time, none of them shown the others'
-findings**, each given a different lens: one reading it as your reviewer would, one auditing the
-diffs, one hunting for figures that are wrong while looking right, one checking every claim the
-documents and docstrings make about the code.
-
-Blind and parallel buys one thing sequential does not: **when two of them report the same defect
-independently, the agreement means something.** Five defects were found twice that way, including a
-README row asserting every figure was checked against a file that holds figures for one of the two
-datasets — and contradicting itself six lines below.
-
-But the expensive findings came from the one nobody else duplicated, the reader comparing figures
-against the data:
-
-- **A cost centre was renamed mid-2024** — your own board memo says so — and nothing mapped the two
-  codes. In Q1 and Q2 the centre with the largest overspend in the quarter was **dropped from the
-  answer entirely** for having no budget line, while the code that inherited its budget was
-  published at **−100%, "spent nothing"**, having spent 716,962.62.
-- **The by-centre answer was ordered wrong at every rate on file**, because rows with no FX rate
-  were totalled into an aggregate and never attributed to a centre — in the one question that asks
-  *by cost centre*.
-- **A year compared against itself was counted twice**, and a year with no rows read as a 100% fall
-  instead of a refusal.
-
-None of the three raise an error. All three print cleanly.
-
-**And then the fix for the first one was killed before it was written.** I designed it as "read the
-memo, map the codes", handed the design to a fresh agent to attack rather than to implement, and it
-came back with the design measured rather than argued with: the suites run `budget_variance` on Q3,
-Q3 has no orphaned centres, so the whole branch would have shipped untested — the exact thing
-`guards.py` exists to forbid. It also fabricated a case where a centre that closed and a centre that
-opened produce the same signature as a rename, which is why nothing here maps the codes. The plan
-now prints both sides and lets the analyst do the mapping, which is what the memo asks the analyst
-to do.
-
-The lesson I did not have before: **executing coldly and reviewing coldly are two different valves.**
-A fresh agent executes a bad design perfectly. Attacking the design costs one more agent and is the
-one I nearly skipped.
+One technical trap, kept because a design decision rests on it: the first live model call returned
+HTTP 200 and an empty string. Reasoning tokens count against `max_tokens` and appear in neither
+`prompt_tokens` nor `completion_tokens` — my ceiling saw 9 where the provider counted 106. The
+ceiling counts `total_tokens` because of it.
 
 ## The thing I had to correct repeatedly, and what stopped it
 
-**Stating a measurement it had not taken.** Every one of these was written into this repository as
-fact, and every one is about the data or about the system — not about prose:
+**Stating a measurement it had not taken.** Six of them were written into this repository as fact,
+and every one is about the data or about the system — not about prose. Two examples:
 
 ```
 "the fourth largest"        Nordwind is the LARGEST. That docstring had recorded the figure
                             produced by the bug it describes, and outlived the fix
-"216 of 228 pairs differ"   228 of 228 differ, and the same docstring said so correctly two
-                            sentences earlier
-"resolved window by window" the plan printed that sentence while querying the whole period
-                            with the union of every window - caught by the fixture, five
-                            candidates against six
-"the eval runner asserts"   there was no eval runner when that was written (one exists
-                            now: evals/eight.py)
-several tools' notes        Meridian's own row counts and date ranges, stated as fact, in
-                            text that travels into the answer against any dataset
-"five of the six rules"     a fixed string enumerating Meridian's policy, emitted as a
-                            decision against ANY dataset - already false against the
-                            fixture, whose policy has four sections and none of those
-                            rules. Found while anchoring the runner's emitters; it had
-                            escaped no_borrowed_facts, which reads tool notes, and this
-                            was a plan decision. The sentence is now built from the
-                            headings of the documents the run actually read
+"five of the six rules"     a fixed string enumerating Meridian's policy, emitted as a decision
+                            against ANY dataset - already false against the fixture, whose
+                            policy has four sections and none of those rules
 ```
 
 Every one reads well and none was checked. Prompting did not fix it, because it is not disobedience
-— a sentence that sounds measured costs nothing to write.
-
-**What fixed it was making the rule structural.**
+— a sentence that sounds measured costs nothing to write. **What fixed it was making the rule
+structural.**
 
 - `evals/no_borrowed_facts.py` runs every tool against the fixture and **fails if a note mentions
-  anything only Meridian has**. A tool may describe what it measured; it may not remember.
-- `evals/guards.py` reproduces each fixed defect against a mutated copy of the fixture — a zero
-  budget, an unrated currency, a year with no data. **Each was verified in the failing direction**:
-  the bug was put back and the guard caught it. A check that only ever passes proves nothing.
+  any of eighteen names, codes and figures that exist only in Meridian**. A blacklist, not a
+  detector: it catches the borrowed facts I knew about, not the ones I did not.
+- `evals/guards.py` reproduces **four of those six defects** against a mutated copy of the fixture,
+  plus a fifth from a later round. **Each was verified in the failing direction**: the bug was put
+  back and the guard caught it. A check that only ever passes proves nothing — and two of the six
+  still have no guard, which the file's own docstring says out loud.
 - **The figures and the caveats are printed by code**, from the tool that measured them. The model
   writes one paragraph and cannot forget what it was never asked to carry.
 - And the narrow rule I now work by: **do not write an hour, a date or a figure you did not just
   read.**
 
-This is the same rule I already use in a production WhatsApp sales bot, after one photo of a payment
-receipt marked three orders as paid: **if the model disobeys and it does damage, it goes in code; if
-it only looks bad, it goes in the prompt.**
-
-Applied to the writer, it deleted most of the prompt. Seven rules became one, because two of them
-were patching a **data** problem: it overclaimed because it could not *see* the caveats, and it
-drifted into methodology because the caveats it had just been handed are ten lines of methodology.
-Run over three plans with three rules and with one, the paragraphs came out equivalent — and the
-three-rule version repeated the caveats anyway, which one of its own rules forbade.
-
-## Which model, and why it barely matters
-
-I used **Gemini 3.6 Flash on Google AI Studio's free tier**, which you name as fine, and moved to
-`gpt-5-mini` when the free tier stopped: **20 requests per day**, and one sweep of the eight
-questions is sixteen. Worth knowing before planning an eval run around it.
-
-**"OpenAI-compatible" is not one protocol.** I wrote here that a provider swap was two environment
-variables, then swapped and got two HTTP 400s:
-
-```
-max_tokens    rejected: "use max_completion_tokens instead"
-temperature   rejected: "does not support 0.0 with this model"
-```
-
-The first is a rename. The second removes a design decision — temperature 0 is why the same question
-routes the same way twice — and that model does not offer it. `ask()` adapts to both and **records
-the adjustment on the answer**, because a run that could not be deterministic must not look like one
-that was.
-
-A stronger model cannot improve a single figure here, because the arithmetic never touches it. The
-honest comparison is **which caveats each one dropped**, not which totals differ.
+This is the same rule I already use in a WhatsApp sales bot I built and still run in production,
+after one photo of a payment receipt marked three orders as paid: **if the model disobeys and it
+does damage, it goes in code; if it only looks bad, it goes in the prompt.** Applied to the writer,
+it deleted most of the prompt — seven rules became one, because two were patching a **data**
+problem. The other four cases are in the journal.
 
 ## What I cut
 
 - **No web interface.** The brief allows either; a UI would eat hours you are not evaluating.
 - **No retrieval over the documents.** Four files, under 6 KB, read whole. Chunking would add an
   embedding model, a store and a threshold so the paragraph that answers the question ranks fourth
-  and never arrives — and that is not hypothetical: a line-based search for the sentence deciding
-  the FTE question returned nothing, because it spans a line break.
+  and never arrives — not hypothetical: a line-based search for the sentence deciding the FTE
+  question returned nothing, because it spans a line break.
 - **No database beyond the local file**, which is also your rule. No performance argument either:
   `query_ledger` grouping all 10,916 rows returns in 13 ms. **No dependencies at all** — clone it,
   run it with 3.12.
@@ -208,17 +156,9 @@ honest comparison is **which caveats each one dropped**, not which totals differ
   docstrings, commit messages — and so is every identifier that crosses from one module to another;
   those six were renamed once it was clear a reviewer meets them in a traceback. Inside the
   functions, the working variables are still in Spanish, because that is the language I thought the
-  problem in and the rename never reached them.
-
-  **The reason it stopped there is the reason the rest of this file keeps circling.** Nothing in
-  `evals/` checks that a figure is correct — measured, not assumed: a reviewer inflated every
-  cost-centre total by 1% and all three suites stayed green. So a sweep across twelve files buys
-  consistency and risks moving a number with nothing to catch it. The six that cross modules were
-  safe to do because a missed one breaks an import loudly and the output diff over all eight plans
-  came back empty, character for character. A hundred local renames have no such floor.
-
-  With two more days it goes with the first item below: build the check that makes a figure change
-  fail, then rename freely underneath it.
+  problem in. **It stopped there because nothing in `evals/` checks that a figure is correct**, so a
+  sweep across twelve files buys consistency and risks moving a number with nothing to catch it. The
+  full reasoning is in the journal.
 
 ## Roughly how long
 
@@ -228,19 +168,22 @@ gap over twenty minutes discarded.
 | | window | active |
 | --- | --- | --- |
 | Fri 14 Aug, evening | 16:42–21:34 | **2.3 h** |
-| Sat 15 Aug | 09:27–19:37 | **7.4 h** |
-| Sun 16 Aug | 13:24–19:38 | **~4.5 h** |
+| Sat 15 Aug | 09:27–20:27 | **7.4 h** |
+| Sun 16 Aug | 13:24–23:21, in two sittings | **~4.5 h** |
 
-The last row is the one I am least sure of, so here is its floor: applying the same rule to this
-repository's own commit timestamps gives **2.1 h** for Sunday. That number is too low and the
-reason is visible in the table above it — **Friday produced 2.3 hours of work and zero commits**,
-because it was spent writing the eight expected answers and finding the traps in the CSVs. A commit
-records when work was saved, not how long it took, and Sunday was mostly reviewing and deciding.
+Plus **~1.4 h** on a fourth day, 10:04–12:06, which built nothing: it went on cutting these two
+documents to the length you asked for and checking their figures again.
 
-**The third day built nothing.** It went entirely on the review below and on the fixes it produced:
-three wrong figures in your data, nine claims in the documents that were not true, and a design of
-mine that a fresh agent killed before it was written. I am over your range and I would rather say
-so than round down the one number in this repository nobody can check.
+**Neither of the last two days built anything.** They went on the review and the fixes it produced:
+three wrong figures in your data, claims in these documents that were not true — including four of
+my own found after I thought this was finished — and a design of mine that a fresh agent killed
+before it was written. I am over your range and I would rather say so than round down the one
+number in this repository nobody can check.
+
+This is the softest figure here and it is worth saying why. The repository's own commit timestamps
+give a **floor** of 4.2 h for Saturday and 3.6 h for Sunday under the same twenty-minute rule — but
+a commit records when work was saved, not how long it took, and Friday produced 2.3 hours and
+**zero commits** because it was spent writing the eight expected answers before any code existed.
 
 Roughly two of the first day's hours went on analysis before a line of code existed — writing the
 eight expected answers, opening the CSVs, finding the traps. It felt like not working and it is the
@@ -250,16 +193,14 @@ only part that could not have been recovered later.
 
 1. **A check that fails when a figure moves.** This is the gap under most of the others. `eight.py`
    judges coherence and `guards.py` reproduces fixed defects, but nothing asserts an amount, and
-   `EXPECTED.md` — the file that holds Tessera's hand-computed answers — is read by no code at all.
+   `EXPECTED.md` — the file holding Tessera's hand-computed answers — is read by no code at all.
    Measured, not assumed: a reviewer inflated every cost-centre total by 1% and all three suites
    stayed green; another moved a quarter-end date by one day, took 31,267 USD off the consolidated
-   total, and they stayed green again. Wiring `EXPECTED.md` into the runner for the fixture only
-   would close it, and Meridian would stay behaviour-judged for the reason the whole file gives.
-2. **Judging the paragraph, not just the trace.** The runner over the eight has since been built
-   (`evals/eight.py`): statuses judged by coherence with their own published evidence, every
-   `must_declare` entry backed by a named emitter — and building it caught one more fixed-string
-   claim, listed above. What still nobody checks by command is the written paragraph itself:
-   whether the prose carries what the trace proved.
+   total, and they stayed green again.
+2. **Judging the paragraph, not just the trace.** `evals/eight.py` judges statuses by coherence with
+   their own published evidence and backs every `must_declare` entry with a named emitter. What
+   nobody checks by command is the written paragraph itself: whether the prose carries what the
+   trace proved.
 3. **Real cost accounting.** The ceiling reports $0.00 because nothing supplies prices. On a free
    tier that is true and still wrong: a reported zero reads as measured.
 4. **Read documents in any format.** Only `.md` is seen today, so a `.txt` policy would make the

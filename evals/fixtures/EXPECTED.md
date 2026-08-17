@@ -1,6 +1,6 @@
 # Tessera Devices — a fixture dataset with a known answer
 
-**Eighteen transactions, five vendors, eleven account rows.** Same columns as Meridian, different
+**Eighteen transactions, five vendors in them and seven in the catalogue, eleven account rows.** Same columns as Meridian, different
 numbers, and small enough that every figure below was worked out by hand **before any tool existed**.
 
 **The account hierarchy is three levels deep, like Meridian's**, and uses the same account codes:
