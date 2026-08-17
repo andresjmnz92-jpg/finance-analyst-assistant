@@ -92,6 +92,25 @@ def _anios_con_datos(con, campo, desde_mes, hasta_mes):
         f"WHERE substr({campo},6,2) BETWEEN ? AND ? ORDER BY 1", (desde_mes, hasta_mes))]
 
 
+def _prose(texto):
+    """A document as flowing sentences, with the Markdown scaffolding removed.
+
+    Sentences pulled out of here are quoted VERBATIM into an answer, so what this
+    strips is not cosmetic. Collapsing whitespace glues a heading onto the
+    paragraph beneath it, and both citations this repository leans on came out
+    wearing one: the memo that carries the FTE refusal was quoted as "Headcount
+    Headcount reporting is produced by...", and the sentence that carries the
+    approval rule opened with a literal "## Pre-approval". A reviewer reads those
+    two lines to decide whether this system quotes its sources faithfully.
+
+    Fenced blocks go first, for the reason recorded where the headings are
+    collected: a `## comment` inside ``` is shell, not a section of the policy.
+    """
+    sin_bloques = re.sub(r"```.*?```", "", texto, flags=re.S)
+    sin_titulos = re.sub(r"^\s*#+.*$", "", sin_bloques, flags=re.M)
+    return re.sub(r"\s+", " ", sin_titulos).strip()
+
+
 def _cuarto(quarter):
     """2, "2", "Q2" and "q2" are the same quarter. The model reads "Q2" in the
     question and writes "Q2" back, which is not a mistake - it is the interface
@@ -897,7 +916,7 @@ def cost_per_fte(eje, root, date_field="accrual_date"):
     dicho = []
     for nombre in catalogo["documents"]:
         doc = eje.usar(read_document, datos_dir=eje.datos_dir, name=nombre)
-        texto = re.sub(r"\s+", " ", doc["text"])
+        texto = _prose(doc["text"])
         for m in re.finditer(r"[^.]*\.", texto):
             frase = m.group(0).strip()
             if any(p in frase.lower() for p in DENOMINADOR_FRASE):
@@ -1026,7 +1045,7 @@ def policy_breaches(eje, root, threshold=1000, date_field="accrual_date"):
         # heading, and citing it would attribute to the policy a section it never had.
         sin_bloques = re.sub(r"```.*?```", "", doc["text"], flags=re.S)
         titulos[nombre] = re.findall(r"^#{2,}\s*(.+?)\s*$", sin_bloques, re.M)
-        texto = re.sub(r"\s+", " ", doc["text"])
+        texto = _prose(doc["text"])
         for m in re.finditer(r"[^.]*\.", texto):
             frase = m.group(0).strip()
             if (entero in frase or str(int(threshold)) in frase) and "approv" in frase.lower():
