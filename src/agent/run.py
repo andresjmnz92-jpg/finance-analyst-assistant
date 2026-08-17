@@ -280,10 +280,22 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
     days after that account left Travel for Marketing. Included, 2024 reads
     1,200.00 and the answer is "travel doubled". Excluded, it reads 1,000.00.
     Both look like answers; only one is one.
+
+    THE YEARS ARE CHECKED AS HARD AS THE ACCOUNTS, AND THEY WERE NOT.
+    _trimestre already refuses a year with no rows and says why; this plan never
+    inherited that. Asked for 2099 against 2024 it answered "spend fell 100%" -
+    a year with no rows summing to zero, and a zero reading as a measurement.
+    Asked for 2024 against 2024 it added the same year to itself and reported a
+    difference of 0.00 over double the real total. The model supplies both
+    arguments, having read them out of the question.
     """
     anios = [r[0] for r in eje.con.execute(
         f"SELECT DISTINCT substr({date_field},1,4) FROM gl_transactions ORDER BY 1")
         ] if date_field in CAMPOS_FECHA else []
+    # Recorded BEFORE the defaults fill them in: which years the caller actually named
+    # is the difference between a year that was taken and one that was given, and the
+    # decision below has to say which happened.
+    pedidos = [str(a) for a in (year_a, year_b) if a is not None]
     if len(anios) < 2 and not (year_a and year_b):
         eje.trace.decision(f"This file holds {len(anios)} year(s) of ledger data "
                            f"({', '.join(anios) or 'none'}); a comparison needs two.")
@@ -298,9 +310,36 @@ def spend_comparison(eje, root, year_a=None, year_b=None, date_field="accrual_da
     if not (year_a and year_b):
         eje.trace.decision("The question names no years and the ledger offers none to pick.")
         return {"status": "REFUSED", "reason": "no years available"}
-    eje.trace.decision(
-        f"Compared {year_b} against {year_a}. This file holds {', '.join(anios)}, and the "
-        f"two most recent were taken; any pair can be asked for instead.")
+    ausentes = [a for a in dict.fromkeys((year_a, year_b)) if a not in anios]
+    if ausentes:
+        eje.trace.decision(
+            f"{', '.join(ausentes)} was asked for and this file has no ledger rows in it. The "
+            f"years with data are {', '.join(anios) or 'none'}. Answering zero would read as no "
+            f"spend rather than no data.")
+        return {"status": "REFUSED", "root": root,
+                "reason": f"no rows in {', '.join(ausentes)}"}
+    if year_a == year_b:
+        eje.trace.decision(
+            f"{year_a} was given on both sides of the comparison. Summing it against itself "
+            f"reports double the year's spend and a difference of zero, which is not a "
+            f"measurement of anything. Ask for two different years.")
+        return {"status": "REFUSED", "root": root,
+                "reason": f"{year_a} was given twice, so there are fewer than two years to "
+                          f"compare"}
+    if len(pedidos) == 2:
+        eje.trace.decision(
+            f"Compared {year_b} against {year_a}, the two years the question named. This file "
+            f"holds {', '.join(anios)}; no year was chosen here.")
+    elif len(pedidos) == 1:
+        eje.trace.decision(
+            f"Compared {year_b} against {year_a}. Only {pedidos[0]} was asked for; "
+            f"{year_a if year_b in pedidos else year_b} was taken from the years this file "
+            f"holds ({', '.join(anios)}). Any pair can be asked for instead.")
+    else:
+        eje.trace.decision(
+            f"Compared {year_b} against {year_a}. The question names no years; this file holds "
+            f"{', '.join(anios)}, and the two most recent were taken. Any pair can be asked "
+            f"for instead.")
 
     por_anio, cortes = {}, {}
     todas = []
