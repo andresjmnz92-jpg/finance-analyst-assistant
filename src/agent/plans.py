@@ -37,7 +37,12 @@ PLANS = {
         "question": "What did we spend on operating expenses in Q2, by cost center?",
         "tools": ["resolve_accounts", "query_ledger", "convert_currency"],
         "must_declare": ["which year", "which date field defines the period",
-                         "which account the phrase resolved to"],
+                         "which account the phrase resolved to",
+                         # The answer is sorted by amount, so it reads as a ranking. Rows
+                         # that could not be converted belong to a centre too, and the
+                         # order cannot be published without saying whether it survives
+                         # them.
+                         "whether the order by centre survives the unconverted rows"],
         # Measured before deciding it: against Meridian, 'travel' matches one account,
         # 'operating expense' matches two (6000 and 6830, one inside the other) and
         # 'headcount' matches NONE - no account is called that, they are called

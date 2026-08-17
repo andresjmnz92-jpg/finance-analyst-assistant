@@ -118,6 +118,12 @@ EMISORES = {
         lambda t: any("Period assigned by" in n for n in t["all_notes"]),
     "which account the phrase resolved to":
         lambda t: (t["findings"] or {}).get("root"),
+    # Key EXISTENCE again: against a full rate grid every bound equals its own
+    # figure and ranking_reliable is true, and publishing that is the
+    # declaration that the order was tested.
+    "whether the order by centre survives the unconverted rows":
+        lambda t: "by_cost_centre_bounds" in (t["findings"] or {})
+        and "ranking_reliable" in (t["findings"] or {}),
     # spend_comparison: the windows finding is published whether or not the
     # chart changed mid-period - one window is also a declaration.
     "account validity windows":

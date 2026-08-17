@@ -260,12 +260,73 @@ def opex_by_cost_centre(eje, root, year=None, quarter=2, date_field="accrual_dat
     for f in fx["rows"]:
         por_centro[f["cost_centre"]] = round(por_centro.get(f["cost_centre"], 0.0)
                                              + f["amount"], 2)
+
+    # WHAT COULD NOT BE CONVERTED IS ATTRIBUTED TO A CENTRE, BECAUSE THE QUESTION IS
+    # "BY COST CENTRE". convert_currency reports its gaps grouped by month and currency,
+    # which loses the centre, so this breakdown summed only the rows that converted and
+    # published the result sorted by amount - a ranking. largest_vendors and
+    # budget_variance already recover the missing side by checking which INPUT rows fall
+    # in a gap; this plan did not, and the order it printed was wrong at every rate on
+    # file. A centre whose rows ALL fell in a gap was not even listed.
+    huecos = {(h["period_month"], h["currency"]) for h in fx["unconverted"]}
+    pendiente = {}
+    for f in filas:
+        if (f["period_month"], f["currency"]) in huecos:
+            d = pendiente.setdefault(f["cost_centre"], {})
+            d[f["currency"]] = round(d.get(f["currency"], 0.0) + f["amount"], 2)
+
+    minimo = {m: r[0] for m, r in fx["rate_range"].items()}
+    maximo = {m: r[1] for m, r in fx["rate_range"].items()}
+    cotas = {}
+    for c in sorted(set(por_centro) | set(pendiente)):
+        falta = pendiente.get(c, {})
+        convertido = por_centro.get(c, 0.0)
+        cotas[c] = {
+            "converted": convertido,
+            "at_least": round(convertido + sum(i * minimo[m] for m, i in falta.items()
+                                               if m in minimo), 2),
+            "at_most": round(convertido + sum(i * maximo[m] for m, i in falta.items()
+                                              if m in maximo), 2)}
+        if falta:
+            cotas[c]["not_converted"] = falta
+        sin_cota = sorted(m for m in falta if m not in minimo)
+        if sin_cota:
+            cotas[c]["no_rate_at_all_for"] = sin_cota
+
+    # An order is only a ranking if no pair can swap inside its bounds. Checked pairwise
+    # rather than on neighbours: a centre can be overtaken by one several places below it.
+    orden = sorted(cotas, key=lambda c: -cotas[c]["converted"])
+    seguro_mal = [(a, b) for i, a in enumerate(orden) for b in orden[i + 1:]
+                  if cotas[b]["at_least"] > cotas[a]["at_most"]]
+    fiable = all(cotas[a]["at_least"] >= cotas[b]["at_most"]
+                 for i, a in enumerate(orden) for b in orden[i + 1:])
+
+    if pendiente:
+        eje.trace.decision(
+            f"{len(pendiente)} cost centre(s) hold rows with no FX rate, so their figure is a "
+            f"floor and not a total: "
+            + "; ".join(f"{c} between {cotas[c]['at_least']:,.2f} and "
+                        f"{cotas[c]['at_most']:,.2f} USD" for c in sorted(pendiente))
+            + ". "
+            + (f"The order below is therefore NOT a ranking - at every rate on file "
+               + "; ".join(f"{b} outranks {a}" for a, b in seguro_mal) + "."
+               if seguro_mal else
+               "The order below is therefore NOT a ranking: the bounds overlap and the "
+               "positions cannot be separated from this file."
+               if not fiable else
+               "The bounds do not overlap, so the order below survives them."))
+
     return {
         "status": "PARTIAL" if fx["unconverted"] else "COMPLETE",
         "period": f"Q{quarter} {year}",
         "root": root,
         "windows": [{"from": i, "to": f, "accounts": len(h)} for i, f, h in resoluciones],
         "by_cost_centre": dict(sorted(por_centro.items(), key=lambda x: -x[1])),
+        # Published whether or not anything is missing: with a full rate grid every bound
+        # collapses onto its own figure and ranking_reliable is true, which is the
+        # statement that the order was tested rather than assumed.
+        "by_cost_centre_bounds": cotas,
+        "ranking_reliable": fiable,
         "total": fx["total"], "currency": fx["currency"],
         "ledger_rows": sum(f["rows"] for f in filas),
         "excluded": fx["unconverted"],
